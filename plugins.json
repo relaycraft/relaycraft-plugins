@@ -9,7 +9,7 @@
             "description": "AI-powered utilities for developers: JWT Debugger, Code Converter, and more.",
             "category": "utility",
             "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.2/com.relaycraft.plugins.smart-devtools-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.smart-devtools-v1.0.0.rcplugin",
             "locales": {
                 "zh": {
                     "name": "智能开发工具箱",
@@ -21,11 +21,17 @@
             "id": "com.relaycraft.plugins.privacy-guard",
             "name": "Privacy Guard",
             "version": "1.0.0",
-            "author": "RelayCraft Team",
+            "author": "RelayCraft Security",
             "description": "Detects and prevents Personally Identifiable Information (PII) leakage in API traffic.",
             "category": "security",
             "icon": "shield",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.2/com.relaycraft.plugins.privacy-guard-v1.0.0.rcplugin"
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.privacy-guard-v1.0.0.rcplugin",
+            "locales": {
+                "zh": {
+                    "name": "隐私卫士",
+                    "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。"
+                }
+            }
         },
         {
             "id": "com.relaycraft.plugins.status-monitor",
@@ -35,7 +41,13 @@
             "description": "A lightweight, native-looking system resource monitor for the status bar.",
             "category": "utility",
             "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.2/com.relaycraft.plugins.status-monitor-v1.0.1.rcplugin"
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.status-monitor-v1.0.1.rcplugin",
+            "locales": {
+                "zh": {
+                    "name": "状态监控",
+                    "description": "一个轻量级、原生外观的状态栏系统资源监视器。"
+                }
+            }
         },
         {
             "id": "com.relaycraft.plugins.lang-spanish",
@@ -45,7 +57,7 @@
             "description": "Adds Spanish language support to RelayCraft. (Note: This is an incomplete example)",
             "category": "i18n",
             "icon": "Globe",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.2/com.relaycraft.plugins.lang-spanish-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.lang-spanish-v1.0.0.rcplugin",
             "locales": {
                 "zh": {
                     "name": "西班牙语语言包 (仅示例)",
