@@ -9,7 +9,7 @@
             "description": "AI-powered utilities for developers: JWT Debugger, Code Converter, and more.",
             "category": "utility",
             "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.3/com.relaycraft.plugins.smart-devtools-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.smart-devtools-v1.0.0.rcplugin",
             "locales": {
                 "zh": {
                     "name": "智能开发工具箱",
@@ -26,7 +26,7 @@
             "description": "Detects and prevents Personally Identifiable Information (PII) leakage in API traffic.",
             "category": "security",
             "icon": "shield",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.3/com.relaycraft.plugins.privacy-guard-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.privacy-guard-v1.0.0.rcplugin",
             "locales": {
                 "zh": {
                     "name": "隐私卫士",
@@ -43,7 +43,7 @@
             "description": "A lightweight, native-looking system resource monitor for the status bar.",
             "category": "utility",
             "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.3/com.relaycraft.plugins.status-monitor-v1.0.1.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.status-monitor-v1.0.1.rcplugin",
             "locales": {
                 "zh": {
                     "name": "状态监控",
@@ -60,7 +60,7 @@
             "description": "Adds Spanish language support to RelayCraft. (Note: This is an incomplete example)",
             "category": "i18n",
             "icon": "Globe",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.3/com.relaycraft.plugins.lang-spanish-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.lang-spanish-v1.0.0.rcplugin",
             "locales": {
                 "zh": {
                     "name": "西班牙语语言包 (仅示例)",
