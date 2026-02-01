@@ -1,0 +1,29 @@
+schema_version: "v2"
+
+id: com.relaycraft.plugins.smart-devtools
+name: "Smart DevTools"
+version: "1.0.0"
+description: "AI-powered utilities for developers: JWT Debugger, Code Converter, and more."
+locales:
+  zh:
+    name: "智能开发工具箱"
+    description: "面向开发者的 AI 辅助工具：JWT 调试、代码转换等。"
+author: "RelayCraft Team"
+icon: "icon.svg"
+
+engines:
+  relaycraft: ">=1.0.0"
+
+capabilities:
+  ui:
+    entry: "index.js"
+  i18n:
+    namespace: plugin_devtools
+    locales:
+      en: locales/en.json
+      zh: locales/zh.json
+
+permissions:
+  - "ai:chat"
+  - "clipboard:read"
+  - "clipboard:write"

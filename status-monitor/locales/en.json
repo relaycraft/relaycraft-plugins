@@ -1,0 +1,21 @@
+{
+    "title": "Status Monitor",
+    "cpu": "CPU Usage",
+    "memory": "Memory RAM",
+    "started": "Started",
+    "refresh": "Refresh",
+    "settings": {
+        "refreshInterval": {
+            "title": "Refresh Interval (ms)",
+            "description": "How often to update the system stats."
+        },
+        "showMemory": {
+            "title": "Show Memory Usage",
+            "description": "Show current memory usage in the status bar."
+        },
+        "showCpu": {
+            "title": "Show CPU Usage",
+            "description": "Show current CPU load percentage in the status bar."
+        }
+    }
+}
