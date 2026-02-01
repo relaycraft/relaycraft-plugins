@@ -1,0 +1,26 @@
+{
+    "sidebar": {
+        "traffic": "Tráfico",
+        "composer": "Redactor",
+        "rules": "Reglas",
+        "scripts": "Scripts",
+        "plugins": "Plugins",
+        "settings": "Configuración"
+    },
+    "titlebar": {
+        "running": "Proxy Ejecutando",
+        "stopped": "Proxy Detenido",
+        "port_in_use": "Puerto en uso",
+        "start_failed": "Fallo al iniciar",
+        "system_proxy": "Proxy del Sistema (Habilitado)"
+    },
+    "settings": {
+        "general": {
+            "title": "General",
+            "language": "Idioma",
+            "language_desc": "Seleccione el idioma de la interfaz (los plugins pueden añadir más).",
+            "always_on_top": "Siempre Visible",
+            "always_on_top_desc": "Mantener la ventana flotando sobre otras aplicaciones."
+        }
+    }
+}

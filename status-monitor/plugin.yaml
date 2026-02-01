@@ -1,0 +1,29 @@
+# plugin.yaml
+schema_version: "v2"
+
+id: com.relaycraft.plugins.status-monitor
+name: "System Status"
+version: "1.0.1"
+description: "A lightweight, native-looking system resource monitor for the status bar."
+locales:
+  zh:
+    name: "系统状态监视器"
+    description: "监控系统资源使用情况（CPU、内存）并在应用中显示。"
+author: "RelayCraft Team"
+icon: "icon.svg"
+
+engines:
+  relaycraft: ">=1.0.0"
+
+capabilities:
+  ui:
+    entry: "monitor.js"
+    settings_schema: "settings.json"
+  i18n:
+    namespace: plugin_monitor
+    locales:
+      en: locales/en.json
+      zh: locales/zh.json
+
+permissions:
+  - "stats:read"

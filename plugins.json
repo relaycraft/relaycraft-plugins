@@ -1,0 +1,57 @@
+{
+    "version": "1.0",
+    "plugins": [
+        {
+            "id": "com.relaycraft.plugins.smart-devtools",
+            "name": "Smart DevTools",
+            "version": "1.0.0",
+            "author": "RelayCraft Team",
+            "description": "AI-powered utilities for developers: JWT Debugger, Code Converter, and more.",
+            "category": "utility",
+            "icon": "icon.svg",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.smart-devtools-v1.0.0.rcplugin",
+            "locales": {
+                "zh": {
+                    "name": "智能开发工具箱",
+                    "description": "面向开发者的 AI 辅助工具：JWT 调试、代码转换等。"
+                }
+            }
+        },
+        {
+            "id": "com.relaycraft.plugins.privacy-guard",
+            "name": "Privacy Guard",
+            "version": "1.0.0",
+            "author": "RelayCraft Security",
+            "description": "Detects and prevents Personally Identifiable Information (PII) leakage in API traffic.",
+            "category": "security",
+            "icon": "shield",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.privacy-guard-v1.0.0.rcplugin"
+        },
+        {
+            "id": "com.relaycraft.plugins.status-monitor",
+            "name": "System Status",
+            "version": "1.0.1",
+            "author": "RelayCraft Team",
+            "description": "A lightweight, native-looking system resource monitor for the status bar.",
+            "category": "utility",
+            "icon": "icon.svg",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.status-monitor-v1.0.1.rcplugin"
+        },
+        {
+            "id": "com.relaycraft.plugins.lang-spanish",
+            "name": "Spanish Language Pack (Example Only)",
+            "version": "1.0.0",
+            "author": "RelayCraft Team",
+            "description": "Adds Spanish language support to RelayCraft. (Note: This is an incomplete example)",
+            "category": "i18n",
+            "icon": "Globe",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.1/com.relaycraft.plugins.lang-spanish-v1.0.0.rcplugin",
+            "locales": {
+                "zh": {
+                    "name": "西班牙语语言包 (仅示例)",
+                    "description": "为 RelayCraft 添加西班牙语支持。(注意：此插件仅作 API 示例，内容未完成)"
+                }
+            }
+        }
+    ]
+}

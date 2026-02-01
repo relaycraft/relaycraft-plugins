@@ -1,0 +1,12 @@
+{
+    "title": "Privacy Guard",
+    "description": "Automatically detect and redact sensitive PII (Personally Identifiable Information) from API traffic.",
+    "beta": "Beta",
+    "master_switch": "Master Switch",
+    "enable": "Enable Protection",
+    "rules": "Detection Rules",
+    "rule_email": "Redact Email Addresses",
+    "rule_phone": "Redact Phone Numbers (CN)",
+    "note": "Note: This plugin inspects plain text JSON/HTML bodies. Encrypted or binary traffic cannot be scanned.",
+    "toast_saved": "Settings saved. New requests will use updated rules."
+}

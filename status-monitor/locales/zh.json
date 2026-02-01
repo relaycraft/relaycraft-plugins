@@ -1,0 +1,21 @@
+{
+    "title": "状态监控",
+    "cpu": "CPU",
+    "memory": "MEM",
+    "started": "已运行",
+    "refresh": "刷新数据",
+    "settings": {
+        "refreshInterval": {
+            "title": "刷新间隔 (ms)",
+            "description": "更新系统状态的频率。"
+        },
+        "showMemory": {
+            "title": "显示内存使用率",
+            "description": "在状态栏显示当前内存占用。"
+        },
+        "showCpu": {
+            "title": "显示 CPU 使用率",
+            "description": "在状态栏显示当前 CPU 占用百分比。"
+        }
+    }
+}

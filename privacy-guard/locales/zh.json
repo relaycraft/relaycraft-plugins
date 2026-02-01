@@ -1,0 +1,12 @@
+{
+    "title": "隐私卫士",
+    "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。",
+    "beta": "测试版",
+    "master_switch": "总开关",
+    "enable": "启用保护",
+    "rules": "检测规则",
+    "rule_email": "隐藏电子邮件地址",
+    "rule_phone": "隐藏手机号码 (CN)",
+    "note": "注意：此插件仅检查明文 JSON/HTML 正文。加密或二进制流量无法扫描。",
+    "toast_saved": "设置已保存。新请求将应用更新后的规则。"
+}

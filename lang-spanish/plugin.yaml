@@ -1,0 +1,22 @@
+# plugin.yaml
+schema_version: "v2"
+
+id: com.relaycraft.plugins.lang-spanish
+name: "Spanish Language Pack (Example Only)"
+version: "1.0.0"
+description: "Adds Spanish language support to RelayCraft. (Note: This is an incomplete example)"
+locales:
+  zh:
+    name: "西班牙语语言包 (仅示例)"
+    description: "为 RelayCraft 添加西班牙语支持。(注意：此插件仅作 API 示例，内容未完成)"
+author: "RelayCraft Team"
+icon: "Globe"
+
+engines:
+  relaycraft: ">=1.0.0"
+
+capabilities:
+  i18n:
+    namespace: "translation"
+    locales:
+      es: "locales/es.json"
