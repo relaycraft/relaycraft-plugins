@@ -15,7 +15,8 @@
                     "name": "智能开发工具箱",
                     "description": "面向开发者的 AI 辅助工具：JWT 调试、代码转换等。"
                 }
-            }
+            },
+            "downloadCount": 0
         },
         {
             "id": "com.relaycraft.plugins.privacy-guard",
@@ -31,7 +32,8 @@
                     "name": "隐私卫士",
                     "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。"
                 }
-            }
+            },
+            "downloadCount": 0
         },
         {
             "id": "com.relaycraft.plugins.status-monitor",
@@ -47,7 +49,8 @@
                     "name": "状态监控",
                     "description": "一个轻量级、原生外观的状态栏系统资源监视器。"
                 }
-            }
+            },
+            "downloadCount": 0
         },
         {
             "id": "com.relaycraft.plugins.lang-spanish",
@@ -63,7 +66,8 @@
                     "name": "西班牙语语言包 (仅示例)",
                     "description": "为 RelayCraft 添加西班牙语支持。(注意：此插件仅作 API 示例，内容未完成)"
                 }
-            }
+            },
+            "downloadCount": 0
         }
     ]
 }
