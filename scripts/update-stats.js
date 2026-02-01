@@ -23,7 +23,7 @@ function fetchGitHubAPI(url) {
         https.get(url, options, (res) => {
             let data = '';
 
-            // Handle redirects (e.g., 301, 302, 307)
+            // Handle redirects
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                 return fetchGitHubAPI(res.headers.location).then(resolve).catch(reject);
             }
@@ -49,8 +49,48 @@ function fetchGitHubAPI(url) {
     });
 }
 
+// Cache for repo releases to avoid redundant API calls
+const repoReleasesCache = {};
+
+async function getAllRepoReleases(owner, repo) {
+    const key = `${owner}/${repo}`;
+    if (repoReleasesCache[key]) {
+        return repoReleasesCache[key];
+    }
+
+    console.log(`Fetching all releases for ${owner}/${repo}...`);
+    let allReleases = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+        const url = `https://api.github.com/repos/${owner}/${repo}/releases?per_page=100&page=${page}`;
+        try {
+            const releases = await fetchGitHubAPI(url);
+            if (releases.length === 0) {
+                hasMore = false;
+            } else {
+                allReleases = allReleases.concat(releases);
+                if (releases.length < 100) {
+                    hasMore = false; // Last page
+                } else {
+                    page++;
+                }
+            }
+            // Rate limit safety
+            await new Promise(r => setTimeout(r, 100));
+        } catch (e) {
+            console.warn(`Failed to fetch page ${page} of releases: ${e.message}`);
+            hasMore = false;
+        }
+    }
+
+    console.log(`  -> Found ${allReleases.length} releases.`);
+    repoReleasesCache[key] = allReleases;
+    return allReleases;
+}
+
 // Helper to parse GitHub release URL
-// Expected format: https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}
 function parseDownloadUrl(url) {
     try {
         const regex = /github\.com\/([^/]+)\/([^/]+)\/releases\/download\/([^/]+)\/(.+)$/;
@@ -71,7 +111,7 @@ function parseDownloadUrl(url) {
 }
 
 async function updateStats() {
-    console.log('Starting plugin statistics update...');
+    console.log('Starting plugin cumulative statistics update...');
     
     const filePath = path.resolve(__dirname, '..', PLUGINS_JSON_FILE);
     
@@ -95,53 +135,40 @@ async function updateStats() {
     }
 
     let updatedCount = 0;
-    let failedCount = 0;
 
     for (const plugin of pluginsData.plugins) {
-        if (!plugin.downloadUrl) {
-            console.warn(`Skipping ${plugin.id}: No downloadUrl`);
-            continue;
-        }
+        if (!plugin.downloadUrl) continue;
 
         const info = parseDownloadUrl(plugin.downloadUrl);
-        if (!info) {
-            console.warn(`Skipping ${plugin.id}: Could not parse downloadUrl (${plugin.downloadUrl})`);
-            continue;
-        }
+        if (!info) continue;
 
-        console.log(`Processing ${plugin.id} (Version: ${plugin.version})...`);
-
-        try {
-            // Strategy: Get specific release by tag
-            // API: GET /repos/{owner}/{repo}/releases/tags/{tag}
-            const releaseUrl = `https://api.github.com/repos/${info.owner}/${info.repo}/releases/tags/${info.tag}`;
-            const releaseData = await fetchGitHubAPI(releaseUrl);
-
-            // Find matching asset
-            const asset = releaseData.assets.find(a => a.name === info.filename);
-            
-            if (asset) {
-                const currentDownloads = asset.download_count;
-                // Update downloadCount in plugin object
-                // Note: We are storing the download count for the CURRENT version.
-                // If you want cumulative, you'd need a different strategy (scanning all releases).
-                plugin.downloadCount = currentDownloads;
-                
-                console.log(`  -> Updated downloadCount: ${currentDownloads}`);
-                updatedCount++;
-            } else {
-                console.warn(`  -> Asset '${info.filename}' not found in release '${info.tag}'`);
-                failedCount++;
-            }
-
-        } catch (error) {
-            console.error(`  -> Failed to fetch stats: ${error.message}`);
-            failedCount++;
-            // Don't abort, continue to next plugin
-        }
+        // Fetch all releases for this repo (cached)
+        const allReleases = await getAllRepoReleases(info.owner, info.repo);
         
-        // Add a small delay to be nice to the API (even with token)
-        await new Promise(r => setTimeout(r, 200));
+        // Calculate cumulative downloads
+        // Logic: Sum download_count of assets that match the plugin ID pattern
+        // Pattern: {plugin_id}-v*.rcplugin
+        // This is robust against version changes.
+        
+        let totalDownloads = 0;
+        const assetPrefix = `${plugin.id}-v`;
+        const assetSuffix = `.rcplugin`;
+
+        for (const release of allReleases) {
+            if (!release.assets) continue;
+            
+            for (const asset of release.assets) {
+                // Check if asset name matches this plugin
+                if (asset.name.startsWith(assetPrefix) && asset.name.endsWith(assetSuffix)) {
+                    totalDownloads += asset.download_count;
+                }
+            }
+        }
+
+        console.log(`Plugin ${plugin.id}: Total Downloads = ${totalDownloads}`);
+        
+        plugin.downloadCount = totalDownloads;
+        updatedCount++;
     }
 
     // Write back to file
@@ -154,11 +181,7 @@ async function updateStats() {
             process.exit(1);
         }
     } else {
-        console.log('\nNo updates were made (either no changes or all requests failed).');
-    }
-    
-    if (failedCount > 0) {
-        console.warn(`WARNING: Failed to update ${failedCount} plugins.`);
+        console.log('\nNo updates were made.');
     }
 }
 
