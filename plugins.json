@@ -16,7 +16,7 @@
                     "description": "面向开发者的 AI 辅助工具：JWT 调试、代码转换等。"
                 }
             },
-            "downloadCount": 4
+            "downloadCount": 11
         },
         {
             "id": "com.relaycraft.plugins.privacy-guard",
@@ -33,7 +33,7 @@
                     "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。"
                 }
             },
-            "downloadCount": 3
+            "downloadCount": 5
         },
         {
             "id": "com.relaycraft.plugins.status-monitor",
@@ -50,7 +50,7 @@
                     "description": "一个轻量级、原生外观的状态栏系统资源监视器。"
                 }
             },
-            "downloadCount": 3
+            "downloadCount": 10
         },
         {
             "id": "com.relaycraft.plugins.lang-spanish",
@@ -67,7 +67,7 @@
                     "description": "为 RelayCraft 添加西班牙语支持。(注意：此插件仅作 API 示例，内容未完成)"
                 }
             },
-            "downloadCount": 3
+            "downloadCount": 7
         }
     ]
 }
