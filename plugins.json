@@ -4,12 +4,12 @@
         {
             "id": "com.relaycraft.plugins.smart-devtools",
             "name": "Smart DevTools",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "author": "RelayCraft Team",
             "description": "AI-powered utilities for developers: JWT Debugger, Code Converter, and more.",
             "category": "utility",
             "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.smart-devtools-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.smart-devtools/v1.0.1/com.relaycraft.plugins.smart-devtools-v1.0.1.rcplugin",
             "locales": {
                 "zh": {
                     "name": "智能开发工具箱",
@@ -38,12 +38,12 @@
         {
             "id": "com.relaycraft.plugins.status-monitor",
             "name": "System Status",
-            "version": "1.0.1",
+            "version": "1.1.0",
             "author": "RelayCraft Team",
-            "description": "A lightweight, native-looking system resource monitor for the status bar.",
+            "description": "A lightweight system resource and network speed monitor for the status bar.",
             "category": "utility",
             "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.status-monitor-v1.0.1.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.status-monitor/v1.1.0/com.relaycraft.plugins.status-monitor-v1.1.0.rcplugin",
             "locales": {
                 "zh": {
                     "name": "状态监控",
