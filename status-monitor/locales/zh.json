@@ -9,13 +9,13 @@
             "title": "刷新间隔 (ms)",
             "description": "更新系统状态的频率。"
         },
-        "showMemory": {
-            "title": "显示内存使用率",
-            "description": "在状态栏显示当前内存占用。"
+        "showResources": {
+            "title": "显示资源占用",
+            "description": "在状态栏显示 CPU 和内存使用率。"
         },
-        "showCpu": {
-            "title": "显示 CPU 使用率",
-            "description": "在状态栏显示当前 CPU 占用百分比。"
+        "showNetwork": {
+            "title": "显示网络速度",
+            "description": "在状态栏显示实时的上传和下载速度。"
         }
     }
 }

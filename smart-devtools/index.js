@@ -1,8 +1,7 @@
 (function () {
-    const { React } = window;
-    const { api } = RelayCraft;
+    const { api, components: CoreComponents } = RelayCraft;
 
-    const { Button, Input, Select, Textarea } = RelayCraft.components || {};
+    const { Button, Input, Select, Textarea } = CoreComponents || {};
     const { Editor, DiffEditor, Markdown } = api.ui.components || {};
 
     const t = (k, opts) => (api.ui && api.ui.t) ? api.ui.t(k, opts) : k;
@@ -96,6 +95,22 @@
     };
 
     // --- Components ---
+    const Section = ({ title, content, type, onEdit, pulse, t, Editor }) => React.createElement('div', {
+        className: `space-y-1 flex flex-col h-full overflow-hidden transition-all duration-300 ${pulse ? 'animate-pulse-subtle' : ''}`
+    },
+        React.createElement('div', { className: "flex items-center" },
+            React.createElement('span', { className: `jwt-dot jwt-${type}-bg` }),
+            React.createElement('span', { className: `section-label mb-0 jwt-${type}` }, t(title))
+        ),
+        React.createElement('div', { className: "flex-1 devtools-panel min-h-0" },
+            React.createElement(Editor, {
+                value: typeof content === 'string' ? content : JSON.stringify(content, null, 2),
+                onChange: onEdit, language: type === 'signature' ? 'text' : 'json',
+                options: { lineNumbers: 'off', fontSize: 13, foldGutter: false, wordWrap: 'on' }
+            })
+        )
+    );
+
     const JwtDebugger = () => {
         const [token, setToken] = React.useState('');
         const [parts, setParts] = React.useState({ header: {}, payload: {}, signature: '' });
@@ -156,22 +171,6 @@
             } catch (e) { }
         };
 
-        const Section = ({ title, content, type, onEdit }) => React.createElement('div', {
-            className: `space-y-1 flex flex-col h-full overflow-hidden transition-all duration-300 ${lastUpdateArea === 'token' ? 'animate-pulse-subtle' : ''}`
-        },
-            React.createElement('div', { className: "flex items-center" },
-                React.createElement('span', { className: `jwt-dot jwt-${type}-bg` }),
-                React.createElement('span', { className: `section-label mb-0 jwt-${type}` }, t(title))
-            ),
-            React.createElement('div', { className: "flex-1 devtools-panel min-h-0" },
-                React.createElement(Editor, {
-                    value: typeof content === 'string' ? content : JSON.stringify(content, null, 2),
-                    onChange: onEdit, language: type === 'signature' ? 'text' : 'json',
-                    options: { lineNumbers: 'off', fontSize: 13, foldGutter: false, wordWrap: 'on' }
-                })
-            )
-        );
-
         return React.createElement('div', { className: "h-full flex flex-col" },
             React.createElement('div', { className: "text-[11px] text-muted-foreground/60 font-medium mt-[-14px] mb-4" }, t('jwt_subtitle')),
             React.createElement('div', { className: "space-y-4 flex-1 flex flex-col min-h-0" },
@@ -182,9 +181,9 @@
                 }),
                 !error ? React.createElement('div', { className: "flex-1 flex flex-col min-h-0 space-y-3" },
                     React.createElement('div', { className: "grid grid-cols-3 gap-4 flex-1 min-h-0" },
-                        React.createElement(Section, { title: 'header', content: parts.header, type: 'header', onEdit: (v) => updateParts('header', v) }),
-                        React.createElement(Section, { title: 'payload', content: parts.payload, type: 'payload', onEdit: (v) => updateParts('payload', v) }),
-                        React.createElement(Section, { title: 'signature', content: parts.signature, type: 'signature', onEdit: (v) => updateParts('signature', v) })
+                        React.createElement(Section, { title: 'header', content: parts.header, type: 'header', onEdit: (v) => updateParts('header', v), pulse: lastUpdateArea === 'token', t, Editor }),
+                        React.createElement(Section, { title: 'payload', content: parts.payload, type: 'payload', onEdit: (v) => updateParts('payload', v), pulse: lastUpdateArea === 'token', t, Editor }),
+                        React.createElement(Section, { title: 'signature', content: parts.signature, type: 'signature', onEdit: (v) => updateParts('signature', v), pulse: lastUpdateArea === 'token', t, Editor })
                     )
                 ) : React.createElement('div', { className: "p-4 text-xs text-destructive bg-destructive/5 rounded-lg border border-destructive/10" }, error)
             )

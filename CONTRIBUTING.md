@@ -51,61 +51,76 @@ permissions:
   - "proxy:write"
 ```
 
-## 3. Comprehensive API Reference (`RelayCraft`)
+## 3. Core API Reference (`RelayCraft`)
 
-RelayCraft provides a global `RelayCraft` object with two main sections: `api` (functions) and `components` (UI elements).
+RelayCraft provides plugins with two core global objects: `RelayCraft.api` (functionality) and `RelayCraft.components` (standard UI).
 
-### `RelayCraft.components` (Standard UI)
+### 3.1 `RelayCraft.components` (Standard UI Library)
+To ensure consistency with the main application, please prioritize using the following built-in components:
 
-These are basic building blocks provided for a consistent look and feel:
-- **`Button`**: Standard interactive button.
-- **`Input`**: Single-line text input.
-- **`Textarea`**: Multi-line text area.
-- **`Select`**: Dropdown selection.
-- **`Switch`**: Toggle switch.
-- **`Skeleton`**: Loading placeholder.
-- **`Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`**: Flexible tabbed interface.
+- **Basic Controls**: `Button`, `Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `Label`.
+- **Layout Containers**: `Card`, `ScrollArea`, `Separator`, `Badge`, `Skeleton`.
+- **Interaction**: `Tooltip`, `Popover`, `Dialog` (Modal), `Accordion`.
+- **Advanced Navigation**: `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`.
 
-### `RelayCraft.api.ui.components` (Complex UI)
-
-Specialized components for technical tasks:
-- **`Editor`**: CodeMirror 6 based code editor.
+### 3.2 `RelayCraft.api.ui.components` (Complex Components)
+- **`Editor`**: A fully functional code editor based on CodeMirror 6, supporting syntax highlighting (JSON, JavaScript, Python, etc.).
 - **`DiffEditor`**: Side-by-side comparison editor.
-- **`Markdown`**: Robust Markdown renderer.
+- **`Markdown`**: Deeply optimized Markdown rendering component.
 
-### `RelayCraft.api` (Functionality)
+### 3.3 Slots
+Plugins can inject UI into the following locations via `api.ui.registerSlot(slotId, options)`:
 
-#### UI Extensions
-- **`registerPage(page)`**: Adds a full-page view to the main navigation.
-- **`registerSlot(slotId, options)`**: Injects a component into a predefined slot (e.g., `status-bar-left`, `flow-detail-tabs`).
-- **`registerTheme(theme)`**: Registers a custom color palette.
-- **`registerLocale(lang, resources)`**: Manually registers i18n bundles.
-- **`t(key, options)`**: Translates a key using the plugin's namespace.
-- **`toast(message, type)`**: Shows a notification (`info`, `success`, `error`).
-- **`onLanguageChange(callback)`**: Listens for system language changes. Returns an unsubscribe function.
+| Slot ID | Description |
+| :--- | :--- |
+| `status-bar-left` | Left side of the status bar, suitable for displaying global status. |
+| `status-bar-right` | Right side of the status bar (next to system clock), suitable for monitoring metrics. |
+| `sidebar-bottom` | Bottom of the sidebar. |
+| `flow-detail-tabs` | Tabs in the request detail panel, suitable for displaying parsed custom data. |
+| `tools-box` | Shortcut icons within the toolbox. |
 
-#### AI & System
-- **`ai.chat(messages)`**: Interface with the configured AI provider.
-  - `messages`: `[{ role: 'user' | 'assistant' | 'system', content: string }]`.
-- **`stats.getProcessStats()`**: CPU, memory, and uptime metrics.
-- **`settings.get(key)`**: Access plugin-specific settings.
-- **`log`**: Scoped logging (`info`, `warn`, `error`).
+---
 
-## 4. Traffic Logic (Python)
+## 4. Permission System & Backend Interaction
 
-If your plugin has a `logic` capability, it can intercept traffic using standard mitmproxy hooks.
+RelayCraft adopts a "Declare then Audit" permission model.
 
-```python
-from relaycraft import ctx
+### 4.1 Permission Manifest (`permissions`)
+Declare the following permissions in `plugin.yaml` to enable restricted APIs:
 
-def request(flow):
-    if "example.com" in flow.request.pretty_url:
-        ctx.log.info("Intercepting example.com")
-        flow.request.headers["X-Plugin-Status"] = "Processed"
+- `stats:read`: Allows calling `api.stats.getProcessStats()` to get system metrics.
+- `ai:chat`: Allows calling `api.ai.chat()` to use built-in AI capabilities.
+- `proxy:read`: Allows reading real-time intercepted traffic summaries.
+- `proxy:write`: Allows modifying request or response data (requires `logic` capability).
+- `network:outbound`: Allows plugins to initiate outbound network requests (coming soon).
+
+### 4.2 Backend API Calls
+```javascript
+// Core built-in features
+const stats = await api.stats.getProcessStats();
+const response = await api.ai.chat([{ role: 'user', content: 'Analyze this JSON' }]);
+
+// Generic backend calls (audited by permissions whitelist)
+const result = await api.invoke('some_backend_command', { arg1: 'val' });
 ```
 
-## 5. Best Practices & Naming
+---
 
-- **Icons**: While the core app uses `lucide-react`, plugins are encouraged to bundle or define their own icon sets for stability.
-- **IDs**: Use reverse domain notation (e.g., `com.user.plugin-name`). The directory name MUST match the final segment.
-- **Styling**: Use the provided CSS variables (e.g., `var(--color-primary)`, `var(--color-border)`) to match the system theme.
+## 5. Roadmap & Upcoming Features
+
+RelayCraft's plugin system is evolving rapidly. The following features will be released progressively:
+
+- [ ] **Custom Settings UI (v2)**: Advanced settings interface generation based on JSON Schema.
+- [ ] **Interceptor API**: Allow JavaScript plugins to define lightweight filtering rules directly without Python sidecars.
+- [ ] **Storage API**: Provide encrypted local key-value storage for persisting plugin configurations.
+
+---
+
+## 6. Best Practices & Styling
+
+- **Consistent Styling**: Use Tailwind CSS with built-in application variables:
+  - Background: `bg-background`, `bg-muted/20`
+  - Text: `text-foreground`, `text-muted-foreground`
+  - Border: `border-border/40`
+- **Lifecycle**: Remember to handle resources released by `api.ui.onLanguageChange`.
+- **ID Conventions**: Use reverse domain notation, e.g., `com.yourname.tools`.

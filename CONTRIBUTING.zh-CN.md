@@ -51,61 +51,76 @@ permissions:
   - "proxy:write"
 ```
 
-## 3. 完整 API 参考 (`RelayCraft`)
+## 3. 核心 API 参考 (`RelayCraft`)
 
-RelayCraft 提供了一个全局 `RelayCraft` 对象，包含两个主要部分：`api`（函数）和 `components`（UI 元素）。
+RelayCraft 为插件提供了两个核心全局对象：`RelayCraft.api`（功能）和 `RelayCraft.components`（标准 UI）。
 
-### `RelayCraft.components` (标准 UI)
+### 3.1 `RelayCraft.components` (标准 UI 库)
+为了保证插件与主应用的一致性，请优先使用以下内置组件：
 
-这些是提供的基本构建块，用于保持一致的外观和感觉：
-- **`Button`**: 标准交互按钮。
-- **`Input`**: 单行文本输入。
-- **`Textarea`**: 多行文本区域。
-- **`Select`**: 下拉选择。
-- **`Switch`**: 切换开关。
-- **`Skeleton`**: 加载占位符。
-- **`Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`**: 灵活的选项卡界面。
+- **基础控件**: `Button`, `Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `Label`.
+- **布局容器**: `Card`, `ScrollArea`, `Separator`, `Badge`, `Skeleton`.
+- **交互反馈**: `Tooltip`, `Popover`, `Dialog` (Modal), `Accordion`.
+- **高级导航**: `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`.
 
-### `RelayCraft.api.ui.components` (复杂 UI)
+### 3.2 `RelayCraft.api.ui.components` (复杂专用组件)
+- **`Editor`**: 基于 CodeMirror 6 的全功能代码编辑器，支持语法高亮（JSON, JavaScript, Python 等）。
+- **`DiffEditor`**: 差异对比编辑器。
+- **`Markdown`**: 深度优化的 Markdown 渲染组件。
 
-用于技术任务的专用组件：
-- **`Editor`**: 基于 CodeMirror 6 的代码编辑器。
-- **`DiffEditor`**: 并排比较编辑器。
-- **`Markdown`**: 强大的 Markdown 渲染器。
+### 3.3 注入点 (Slots)
+插件可以通过 `api.ui.registerSlot(slotId, options)` 将 UI 注入以下位置：
 
-### `RelayCraft.api` (功能)
+| 插槽 ID | 说明 |
+| :--- | :--- |
+| `status-bar-left` | 状态栏左侧，适合展示全局运行状态。 |
+| `status-bar-right` | 状态栏右侧（系统时钟旁），适合展示监控指标。 |
+| `sidebar-bottom` | 侧边栏底部。 |
+| `flow-detail-tabs` | 请求详情面板的选项卡，适合展示解析后的自定义数据。 |
+| `tools-box` | 工具箱内的快捷图标。 |
 
-#### UI 扩展
-- **`registerPage(page)`**: 向主导航添加整页视图。
-- **`registerSlot(slotId, options)`**: 将组件注入预定义的插槽（例如 `status-bar-left`, `flow-detail-tabs`）。
-- **`registerTheme(theme)`**: 注册自定义调色板。
-- **`registerLocale(lang, resources)`**: 手动注册 i18n 包。
-- **`t(key, options)`**: 使用插件的命名空间翻译键。
-- **`toast(message, type)`**: 显示通知 (`info`, `success`, `error`)。
-- **`onLanguageChange(callback)`**: 监听系统语言更改。返回取消订阅函数。
+---
 
-#### AI 与系统
-- **`ai.chat(messages)`**: 与配置的 AI 提供商接口。
-  - `messages`: `[{ role: 'user' | 'assistant' | 'system', content: string }]`.
-- **`stats.getProcessStats()`**: CPU、内存和运行时间指标。
-- **`settings.get(key)`**: 访问插件特定设置。
-- **`log`**: 作用域日志记录 (`info`, `warn`, `error`)。
+## 4. 权限系统与后端交互
 
-## 4. 流量逻辑 (Python)
+RelayCraft 采用“先声明，后审计”的权限模型。
 
-如果你的插件具有 `logic` 能力，它可以使用标准的 mitmproxy 钩子拦截流量。
+### 4.1 权限清单 (`permissions`)
+在 `plugin.yaml` 中声明以下权限以启用受限 API：
 
-```python
-from relaycraft import ctx
+- `stats:read`: 允许调用 `api.stats.getProcessStats()` 获取系统指标。
+- `ai:chat`: 允许调用 `api.ai.chat()` 使用内置 AI 能力。
+- `proxy:read`: 允许读取实时截获的流量摘要。
+- `proxy:write`: 允许修改请求或响应数据（需配合 `logic` 能力）。
+- `network:outbound`: 允许插件发起外部网络请求（即将开放）。
 
-def request(flow):
-    if "example.com" in flow.request.pretty_url:
-        ctx.log.info("Intercepting example.com")
-        flow.request.headers["X-Plugin-Status"] = "Processed"
+### 4.2 后端 API 调用
+```javascript
+// 核心内置功能
+const stats = await api.stats.getProcessStats();
+const response = await api.ai.chat([{ role: 'user', content: '分析这段 JSON' }]);
+
+// 通用后端调用 (受到 permissions 白名单审计)
+const result = await api.invoke('some_backend_command', { arg1: 'val' });
 ```
 
-## 5. 最佳实践与命名
+---
 
-- **图标**: 虽然核心应用程序使用 `lucide-react`，但为了稳定性，建议插件捆绑或定义自己的图标集。
-- **ID**: 使用反向域名表示法（例如 `com.user.plugin-name`）。目录名称必须与最后一段匹配。
-- **样式**: 使用提供的 CSS 变量（例如 `var(--color-primary)`, `var(--color-border)`）以匹配系统主题。
+## 5. 路线图 (Roadmap) & 陆续开放的功能
+
+RelayCraft 的插件系统正在快速进化，以下功能将陆续开放：
+
+- [ ] **自定义设置 UI (v2)**: 基于 JSON Schema 的高级设置界面生成。
+- [ ] **拦截器 API**: 允许 JavaScript 插件直接定义轻量级过滤规则，无需 Python 侧边栏。 
+- [ ] **存储 API**: 提供加密的本地键值对存储，用于持久化插件配置。
+
+---
+
+## 6. 最佳实践与样式原则
+
+- **等阶样式**: 使用 Tailwind CSS 并配合应用内置变量：
+  - 背景：`bg-background`, `bg-muted/20`
+  - 文字：`text-foreground`, `text-muted-foreground`
+  - 边框：`border-border/40`
+- **生命周期**: 记得处理 `api.ui.onLanguageChange` 释放的资源。
+- **ID 规范**: 使用反向域名命名空间，如 `com.yourname.tools`。

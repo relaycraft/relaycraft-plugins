@@ -9,13 +9,13 @@
             "title": "Refresh Interval (ms)",
             "description": "How often to update the system stats."
         },
-        "showMemory": {
-            "title": "Show Memory Usage",
-            "description": "Show current memory usage in the status bar."
+        "showResources": {
+            "title": "Show Resource Usage",
+            "description": "Show CPU and memory usage in the status bar."
         },
-        "showCpu": {
-            "title": "Show CPU Usage",
-            "description": "Show current CPU load percentage in the status bar."
+        "showNetwork": {
+            "title": "Show Network Speed",
+            "description": "Show real-time upload and download speeds."
         }
     }
 }

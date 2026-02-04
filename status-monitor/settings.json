@@ -10,15 +10,17 @@
             "maximum": 10000,
             "description": "How often to update the system stats."
         },
-        "showMemory": {
+        "showResources": {
             "type": "boolean",
-            "title": "Show Memory Usage",
-            "default": true
+            "title": "Show Resource Usage",
+            "default": true,
+            "description": "Show CPU and Memory usage in the status bar."
         },
-        "showCpu": {
+        "showNetwork": {
             "type": "boolean",
-            "title": "Show CPU Usage",
-            "default": true
+            "title": "Show Network Speed",
+            "default": true,
+            "description": "Show real-time upload and download speeds."
         }
     }
 }

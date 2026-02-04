@@ -2,7 +2,7 @@ schema_version: "v2"
 
 id: com.relaycraft.plugins.smart-devtools
 name: "Smart DevTools"
-version: "1.0.0"
+version: "1.0.1"
 description: "AI-powered utilities for developers: JWT Debugger, Code Converter, and more."
 locales:
   zh:
