@@ -146,15 +146,27 @@ async function updateStats() {
         const allReleases = await getAllRepoReleases(info.owner, info.repo);
         
         // Calculate cumulative downloads
-        // Logic: Sum download_count of assets that match the plugin ID pattern
-        // Pattern: {plugin_id}-v*.rcplugin
-        // This is robust against version changes.
+        // Logic: 
+        // 1. Filter releases that belong to this plugin (check tag_name)
+        //    New Tag Format: {plugin_id}/v{version}
+        //    Legacy Tag Format: v1.0.{build} (we can still try to count assets here if names match)
+        // 2. Sum download_count of assets that match the plugin filename pattern
         
         let totalDownloads = 0;
         const assetPrefix = `${plugin.id}-v`;
         const assetSuffix = `.rcplugin`;
+        const tagPrefix = `${plugin.id}/v`; // New tag prefix
 
         for (const release of allReleases) {
+            // Optimization: If release tag isnamespaced, ensure it matches this plugin
+            // This prevents double counting if multiple plugins have similar IDs (unlikely but safe)
+            // If tag doesn't contain '/', it's a legacy global release, so we check assets inside it.
+            if (release.tag_name.includes('/')) {
+                if (!release.tag_name.startsWith(tagPrefix)) {
+                    continue; // Skip releases for other plugins
+                }
+            }
+
             if (!release.assets) continue;
             
             for (const asset of release.assets) {
