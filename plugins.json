@@ -50,7 +50,7 @@
                     "description": "一个轻量级、原生外观的状态栏系统资源监视器。"
                 }
             },
-            "downloadCount": 18
+            "downloadCount": 19
         },
         {
             "id": "com.relaycraft.plugins.lang-spanish",
@@ -67,7 +67,7 @@
                     "description": "为 RelayCraft 添加西班牙语支持。(注意：此插件仅作 API 示例，内容未完成)"
                 }
             },
-            "downloadCount": 8
+            "downloadCount": 9
         }
     ]
 }
