@@ -33,7 +33,7 @@
                     "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。"
                 }
             },
-            "downloadCount": 5
+            "downloadCount": 6
         },
         {
             "id": "com.relaycraft.plugins.status-monitor",
@@ -67,7 +67,7 @@
                     "description": "为 RelayCraft 添加西班牙语支持。(注意：此插件仅作 API 示例，内容未完成)"
                 }
             },
-            "downloadCount": 9
+            "downloadCount": 10
         }
     ]
 }
