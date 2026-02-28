@@ -33,7 +33,7 @@
                     "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。"
                 }
             },
-            "downloadCount": 7
+            "downloadCount": 8
         },
         {
             "id": "com.relaycraft.plugins.status-monitor",
