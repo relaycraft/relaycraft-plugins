@@ -112,5 +112,7 @@
         order: 10
     });
 
-    api.ui.toast(api.ui.t('title') + " Active", "success");
+    if (api.ui && api.ui.toast && api.i18n && api.i18n.t) {
+        api.ui.toast(api.i18n.t('title') + " Active", "success");
+    }
 })();

@@ -2,7 +2,7 @@ schema_version: "v2"
 
 id: com.relaycraft.plugins.lang-spanish
 name: "Spanish Language Pack (Example Only)"
-version: "1.0.0"
+version: "1.0.1"
 description: "Adds Spanish language support to RelayCraft. (Note: This is an incomplete example)"
 locales:
   zh:

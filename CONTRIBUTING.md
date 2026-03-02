@@ -53,9 +53,33 @@ permissions:
 
 ## 3. Core API Reference (`RelayCraft`)
 
-RelayCraft provides plugins with two core global objects: `RelayCraft.api` (functionality) and `RelayCraft.components` (standard UI).
+RelayCraft exposes two core global objects: `RelayCraft.api` (functionality) and `RelayCraft.components` (standard UI).
 
-### 3.1 `RelayCraft.components` (Standard UI Library)
+### 3.1 `RelayCraft.api` Namespaces
+
+The API is organized into domain-specific namespaces:
+
+- **`api.i18n`**: Internationalization
+  - `t(key, options)`: Translate text
+  - `language`: Current language code
+  - `onLanguageChange(callback)`: Listen for language changes
+- **`api.theme`**: Theme Management
+  - `register(theme)`: Register a new theme
+  - `set(themeId)`: Switch current theme
+- **`api.ui`**: User Interface
+  - `registerPage(page)`: Register a standalone page
+  - `registerSlot(id, options)`: Register a slot component
+  - `toast(message, type)`: Show global toast notification
+- **`api.ai`**: AI Capabilities
+  - `chat(messages)`: Invoke AI chat completion
+  - `isEnabled()`: Check if AI features are enabled
+- **`api.stats`**: System Monitoring
+  - `getProcessStats()`: Get process statistics
+- **`api.settings`**: Plugin Configuration
+  - `get(key)`: Get settings
+  - `save(settings)`: Save settings
+
+### 3.2 `RelayCraft.components` (Standard UI Library)
 To ensure consistency with the main application, please prioritize using the following built-in components:
 
 - **Basic Controls**: `Button`, `Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `Label`.
@@ -68,40 +92,40 @@ To ensure consistency with the main application, please prioritize using the fol
 - **`DiffEditor`**: Side-by-side comparison editor.
 - **`Markdown`**: Deeply optimized Markdown rendering component.
 
-### 3.3 Slots
-Plugins can inject UI into the following locations via `api.ui.registerSlot(slotId, options)`:
+### 3.3 Injection Points (Slots)
+Plugins can inject UI into the following locations using `api.ui.registerSlot(slotId, options)`:
 
 | Slot ID | Description |
 | :--- | :--- |
-| `status-bar-left` | Left side of the status bar, suitable for displaying global status. |
-| `status-bar-right` | Right side of the status bar (next to system clock), suitable for monitoring metrics. |
+| `status-bar-left` | Left side of status bar. |
+| `status-bar-right` | Right side of status bar. |
 | `sidebar-bottom` | Bottom of the sidebar. |
-| `flow-detail-tabs` | Tabs in the request detail panel, suitable for displaying parsed custom data. |
-| `tools-box` | Shortcut icons within the toolbox. |
+| `tools-box` | Shortcut icons in the toolbox. |
 
 ---
 
-## 4. Permission System & Backend Interaction
-
-RelayCraft adopts a "Declare then Audit" permission model.
+## 4. Permissions & Backend Interaction
 
 ### 4.1 Permission Manifest (`permissions`)
-Declare the following permissions in `plugin.yaml` to enable restricted APIs:
+Declare the following permissions in `plugin.yaml`:
 
-- `stats:read`: Allows calling `api.stats.getProcessStats()` to get system metrics.
-- `ai:chat`: Allows calling `api.ai.chat()` to use built-in AI capabilities.
-- `proxy:read`: Allows reading real-time intercepted traffic summaries.
-- `proxy:write`: Allows modifying request or response data (requires `logic` capability).
-- `network:outbound`: Allows plugins to initiate outbound network requests (coming soon).
+- `stats:read`: Allows calling `api.stats.getProcessStats()`.
+- `ai:chat`: Allows calling `api.ai.chat()`.
+- `proxy:read`: Allows reading intercepted traffic.
+- `proxy:write`: Allows modifying traffic.
 
-### 4.2 Backend API Calls
+### 4.2 API Usage
 ```javascript
-// Core built-in features
+// Get system stats
 const stats = await api.stats.getProcessStats();
-const response = await api.ai.chat([{ role: 'user', content: 'Analyze this JSON' }]);
 
-// Generic backend calls (audited by permissions whitelist)
-const result = await api.invoke('some_backend_command', { arg1: 'val' });
+// AI Chat
+if (api.ai.isEnabled()) {
+    const response = await api.ai.chat([{ role: 'user', content: 'Analyze this' }]);
+}
+
+// i18n
+const translated = api.i18n.t('hello');
 ```
 
 ---

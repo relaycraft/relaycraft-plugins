@@ -55,7 +55,31 @@ permissions:
 
 RelayCraft 为插件提供了两个核心全局对象：`RelayCraft.api`（功能）和 `RelayCraft.components`（标准 UI）。
 
-### 3.1 `RelayCraft.components` (标准 UI 库)
+### 3.1 `RelayCraft.api` 命名空间
+
+API 已按功能领域划分为多个子模块：
+
+- **`api.i18n`**: 多语言支持
+  - `t(key, options)`: 翻译文本
+  - `language`: 当前语言代码
+  - `onLanguageChange(callback)`: 监听语言变更
+- **`api.theme`**: 主题管理
+  - `register(theme)`: 注册新主题
+  - `set(themeId)`: 切换当前主题
+- **`api.ui`**: 界面交互
+  - `registerPage(page)`: 注册独立页面
+  - `registerSlot(id, options)`: 注册插槽组件
+  - `toast(message, type)`: 显示全局提示
+- **`api.ai`**: AI 能力
+  - `chat(messages)`: 调用 AI 对话
+  - `isEnabled()`: 检查 AI 功能是否可用
+- **`api.stats`**: 系统监控
+  - `getProcessStats()`: 获取进程状态
+- **`api.settings`**: 插件配置
+  - `get(key)`: 获取配置
+  - `save(settings)`: 保存配置
+
+### 3.2 `RelayCraft.components` (标准 UI 库)
 为了保证插件与主应用的一致性，请优先使用以下内置组件：
 
 - **基础控件**: `Button`, `Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `Label`.
@@ -76,7 +100,6 @@ RelayCraft 为插件提供了两个核心全局对象：`RelayCraft.api`（功�
 | `status-bar-left` | 状态栏左侧，适合展示全局运行状态。 |
 | `status-bar-right` | 状态栏右侧（系统时钟旁），适合展示监控指标。 |
 | `sidebar-bottom` | 侧边栏底部。 |
-| `flow-detail-tabs` | 请求详情面板的选项卡，适合展示解析后的自定义数据。 |
 | `tools-box` | 工具箱内的快捷图标。 |
 
 ---
@@ -94,14 +117,18 @@ RelayCraft 采用“先声明，后审计”的权限模型。
 - `proxy:write`: 允许修改请求或响应数据（需配合 `logic` 能力）。
 - `network:outbound`: 允许插件发起外部网络请求（即将开放）。
 
-### 4.2 后端 API 调用
+### 4.2 API 调用示例
 ```javascript
-// 核心内置功能
+// 获取系统状态
 const stats = await api.stats.getProcessStats();
-const response = await api.ai.chat([{ role: 'user', content: '分析这段 JSON' }]);
 
-// 通用后端调用 (受到 permissions 白名单审计)
-const result = await api.invoke('some_backend_command', { arg1: 'val' });
+// 调用 AI
+if (api.ai.isEnabled()) {
+    const response = await api.ai.chat([{ role: 'user', content: '分析 JSON' }]);
+}
+
+// 国际化
+const translated = api.i18n.t('hello');
 ```
 
 ---

@@ -60,5 +60,17 @@
     "now": "Now",
     "convert": "Convert",
     "format": "Format",
-    "jwt_subtitle": "Support bidirectional real-time encoding/decoding for Header, Payload and Signature."
+    "jwt_subtitle": "Support bidirectional real-time encoding/decoding for Header, Payload and Signature.",
+    "url_encoder": "URL Encoder",
+    "url_encode": "Encode",
+    "url_decode": "Decode",
+    "copy_result": "Copy Result",
+    "copied": "Copied!",
+    "regex_tester": "Regex Tester",
+    "regex_pattern_placeholder": "Regex Pattern (e.g. \\d+)",
+    "test_string": "Test String",
+    "matches": "Matches",
+    "no_matches": "No matches found",
+    "color_converter": "Color Converter",
+    "pick_color": "Pick a Color"
 }

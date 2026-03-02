@@ -6,7 +6,7 @@
     const { Switch } = RelayCraft.components || {};
 
     // Helper for safe translation
-    const t = (k, opts) => (api.ui && api.ui.t) ? api.ui.t(k, opts) : k;
+    const t = (k, opts) => (api.i18n && api.i18n.t) ? api.i18n.t(k, opts) : k;
 
     const PrivacyGuardSettings = () => {
         const [settings, setSettings] = React.useState({
@@ -18,8 +18,8 @@
         // Language listener for dynamic updates
         const [lang, setLang] = React.useState('en');
         React.useEffect(() => {
-            if (api.ui && api.ui.onLanguageChange) {
-                return api.ui.onLanguageChange(l => setLang(l));
+            if (api.i18n && api.i18n.onLanguageChange) {
+                return api.i18n.onLanguageChange(l => setLang(l));
             }
         }, []);
 

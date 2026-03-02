@@ -60,5 +60,17 @@
     "now": "现在",
     "convert": "转换",
     "format": "格式化",
-    "jwt_subtitle": "支持 Header / Payload / Signature 的双向实时编解码。"
+    "jwt_subtitle": "支持 Header / Payload / Signature 的双向实时编解码。",
+    "url_encoder": "URL 编解码",
+    "url_encode": "编码",
+    "url_decode": "解码",
+    "copy_result": "复制结果",
+    "copied": "已复制",
+    "regex_tester": "正则测试",
+    "regex_pattern_placeholder": "正则表达式 (例如 \\d+)",
+    "test_string": "测试文本",
+    "matches": "匹配结果",
+    "no_matches": "未找到匹配项",
+    "color_converter": "颜色转换",
+    "pick_color": "选择颜色"
 }
