@@ -4,12 +4,12 @@
         {
             "id": "com.relaycraft.plugins.smart-devtools",
             "name": "Smart DevTools",
-            "version": "1.0.1",
+            "version": "1.1.0",
             "author": "RelayCraft Team",
             "description": "AI-powered utilities for developers: JWT Debugger, Code Converter, and more.",
             "category": "utility",
-            "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.smart-devtools/v1.0.1/com.relaycraft.plugins.smart-devtools-v1.0.1.rcplugin",
+            "icon": "Terminal",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.smart-devtools/v1.1.0/com.relaycraft.plugins.smart-devtools-v1.1.0.rcplugin",
             "locales": {
                 "zh": {
                     "name": "智能开发工具箱",
@@ -21,12 +21,12 @@
         {
             "id": "com.relaycraft.plugins.privacy-guard",
             "name": "Privacy Guard",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "author": "RelayCraft Team",
             "description": "Detects and prevents Personally Identifiable Information (PII) leakage in API traffic.",
             "category": "security",
             "icon": "shield",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.privacy-guard-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.privacy-guard/v1.0.1/com.relaycraft.plugins.privacy-guard-v1.0.1.rcplugin",
             "locales": {
                 "zh": {
                     "name": "隐私卫士",
@@ -38,12 +38,12 @@
         {
             "id": "com.relaycraft.plugins.status-monitor",
             "name": "System Status",
-            "version": "1.1.0",
+            "version": "1.1.1",
             "author": "RelayCraft Team",
             "description": "A lightweight system resource and network speed monitor for the status bar.",
             "category": "utility",
             "icon": "icon.svg",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.status-monitor/v1.1.0/com.relaycraft.plugins.status-monitor-v1.1.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.status-monitor/v1.1.1/com.relaycraft.plugins.status-monitor-v1.1.1.rcplugin",
             "locales": {
                 "zh": {
                     "name": "状态监控",
@@ -55,12 +55,12 @@
         {
             "id": "com.relaycraft.plugins.lang-spanish",
             "name": "Spanish Language Pack (Example Only)",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "author": "RelayCraft Team",
             "description": "Adds Spanish language support to RelayCraft. (Note: This is an incomplete example)",
             "category": "i18n",
             "icon": "Globe",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/v1.0.4/com.relaycraft.plugins.lang-spanish-v1.0.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.lang-spanish/v1.0.1/com.relaycraft.plugins.lang-spanish-v1.0.1.rcplugin",
             "locales": {
                 "zh": {
                     "name": "西班牙语语言包 (仅示例)",
