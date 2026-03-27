@@ -1,0 +1,12 @@
+{
+  "name": "relaycraft-plugins",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build helpers for RelayCraft plugins repository",
+  "scripts": {
+    "build:ui": "node scripts/build_ui_plugins.mjs"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

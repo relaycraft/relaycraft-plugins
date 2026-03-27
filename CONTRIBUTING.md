@@ -11,6 +11,10 @@ A standard plugin consists of a folder containing:
 - `index.js`: Main UI entry point (optional).
 - `locales/`: Localization files (optional).
 
+Plugins support two development modes:
+- **Direct mode (no build)**: Write `index.js` directly (best for simple plugins).
+- **Build mode (optional)**: Use TypeScript/Vite/esbuild in `src/`, then build into `index.js`.
+
 ```text
 my-plugin/
 ├── plugin.yaml
@@ -49,6 +53,42 @@ capabilities:
 permissions:
   - "ai:chat"
   - "proxy:write"
+```
+
+### 2.1 Optional Build Configuration
+
+For complex plugins, you can enable per-plugin build steps in `plugin.yaml`:
+
+```yaml
+capabilities:
+  ui:
+    entry: "index.js"
+
+build:
+  enabled: true
+  tool: "vite"            # Optional metadata: vite | esbuild | custom
+  command: "pnpm build"   # Required when enabled=true
+  output: "index.js"      # Must match capabilities.ui.entry
+  config: "vite.config.ts" # Optional metadata
+```
+
+Rules:
+- If `build.enabled` is omitted or `false`, the plugin is treated as direct mode.
+- If `build.enabled=true`, CI runs `build.command` before packaging.
+- `build.output` must match `capabilities.ui.entry`.
+- Build failures are isolated per plugin (failed plugin is skipped; others still package/release).
+
+### 2.2 Recommended Structure for Build Mode
+
+```text
+my-plugin/
+├── plugin.yaml
+├── index.js              # build output
+├── src/
+│   └── main.tsx
+└── locales/
+    ├── en.json
+    └── zh.json
 ```
 
 ## 3. Core API Reference (`RelayCraft`)
@@ -148,3 +188,15 @@ RelayCraft's plugin system is evolving rapidly. The following features will be r
   - Border: `border-border/40`
 - **Lifecycle**: Remember to handle resources released by `api.ui.onLanguageChange`.
 - **ID Conventions**: Use reverse domain notation, e.g., `com.yourname.tools`.
+
+## 7. Troubleshooting Build Mode
+
+- **`build.enabled=true` but plugin not released**
+  - Check build logs in `scripts/build_ui_plugins.mjs` output.
+  - Confirm `build.command` exits with code `0`.
+- **`UI entry not found`**
+  - Ensure `build.output` equals `capabilities.ui.entry`.
+  - Ensure the output file exists inside the plugin directory before packaging.
+- **Build works locally but not in CI**
+  - Make sure your changes touch workflow-trigger paths (`*.ts`, `*.tsx`, `*.js`, `plugin.yaml`, `scripts/**`, etc.).
+  - Ensure required build dependencies are declared in repository `package.json`.

@@ -8,6 +8,7 @@ import sys
 # Configuration
 DIST_DIR = "dist"
 PLUGINS_JSON_FILE = "plugins.json"
+BUILD_RESULTS_FILE = "build_results.json"
 REPO_NAME = os.environ.get("GITHUB_REPOSITORY", "relaycraft/relaycraft-plugins")
 
 def load_plugins_json():
@@ -27,6 +28,41 @@ def find_plugin_dirs():
             if os.path.exists(os.path.join(item, "plugin.yaml")):
                 plugin_dirs.append(item)
     return plugin_dirs
+
+def load_build_results():
+    if not os.path.exists(BUILD_RESULTS_FILE):
+        return {}
+    try:
+        with open(BUILD_RESULTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("plugins", {})
+    except Exception as e:
+        print(f"[build_plugins] Failed to load {BUILD_RESULTS_FILE}: {e}")
+        return {}
+
+def plugin_can_be_packaged(plugin_dir, manifest, build_results):
+    ui_entry = ((manifest.get("capabilities") or {}).get("ui") or {}).get("entry")
+    build = manifest.get("build") or {}
+    build_enabled = build.get("enabled") is True
+    result = build_results.get(plugin_dir)
+
+    if not ui_entry:
+        return True, None
+
+    entry_path = os.path.join(plugin_dir, ui_entry)
+
+    if build_enabled:
+        if not result:
+            return False, f"Missing build result for build-enabled plugin: {plugin_dir}"
+        status = result.get("status")
+        if status != "built":
+            err = result.get("error") or "Unknown build failure"
+            return False, f"Build failed for {plugin_dir}: {err}"
+
+    if not os.path.exists(entry_path):
+        return False, f"UI entry not found: {entry_path}"
+
+    return True, None
 
 def build_plugin(plugin_dir, output_dir):
     with open(os.path.join(plugin_dir, "plugin.yaml"), "r", encoding="utf-8") as f:
@@ -66,6 +102,7 @@ def main():
     existing_plugins_map = {p["id"]: p for p in plugins_data.get("plugins", [])}
     
     plugin_dirs = find_plugin_dirs()
+    build_results = load_build_results()
     updated_count = 0
     releases_to_create = []
     
@@ -82,6 +119,11 @@ def main():
         p_id = manifest.get("id")
         p_version = manifest.get("version")
         p_name = manifest.get("name", p_id)
+
+        can_package, reason = plugin_can_be_packaged(p_dir, manifest, build_results)
+        if not can_package:
+            print(f"Skipping {p_dir}: {reason}")
+            continue
 
         # Check if version has changed
         existing_plugin = existing_plugins_map.get(p_id)

@@ -6,7 +6,15 @@ on:
       - main
     paths:
       - '**/plugin.yaml'
+      - '**/*.js'
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/locales/**'
+      - '**/settings.json'
+      - '**/*.svg'
       - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -26,10 +34,19 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyyaml
+          npm install
+
+      - name: Build UI plugins (optional build mode)
+        run: node scripts/build_ui_plugins.mjs
 
       - name: Build Plugins and Update Registry
         id: build

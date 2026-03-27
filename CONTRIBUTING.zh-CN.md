@@ -11,6 +11,10 @@ RelayCraft 插件允许你通过自定义 UI、流量处理逻辑和本地化来
 - `index.js`: 主 UI 入口点（可选）。
 - `locales/`: 本地化文件（可选）。
 
+插件支持两种开发模式：
+- **直写模式（无需编译）**：直接维护 `index.js`（适合简单插件）。
+- **构建模式（可选）**：在 `src/` 使用 TypeScript/Vite/esbuild，构建产出 `index.js`。
+
 ```text
 my-plugin/
 ├── plugin.yaml
@@ -49,6 +53,42 @@ capabilities:
 permissions:
   - "ai:chat"
   - "proxy:write"
+```
+
+### 2.1 可选构建配置（build）
+
+对于复杂插件，可在 `plugin.yaml` 中声明按插件构建：
+
+```yaml
+capabilities:
+  ui:
+    entry: "index.js"
+
+build:
+  enabled: true
+  tool: "vite"             # 可选元信息：vite | esbuild | custom
+  command: "pnpm build"    # enabled=true 时必填
+  output: "index.js"       # 必须与 capabilities.ui.entry 一致
+  config: "vite.config.ts" # 可选元信息
+```
+
+约束规则：
+- 未配置 `build` 或 `build.enabled=false` 时，按直写模式处理。
+- `build.enabled=true` 时，CI 会在打包前执行 `build.command`。
+- `build.output` 必须等于 `capabilities.ui.entry`。
+- 构建失败按插件隔离：失败插件跳过，其他插件继续发布。
+
+### 2.2 构建模式推荐目录
+
+```text
+my-plugin/
+├── plugin.yaml
+├── index.js              # 构建产物
+├── src/
+│   └── main.tsx
+└── locales/
+    ├── en.json
+    └── zh.json
 ```
 
 ## 3. 核心 API 参考 (`RelayCraft`)
@@ -151,3 +191,15 @@ RelayCraft 的插件系统正在快速进化，以下功能将陆续开放：
   - 边框：`border-border/40`
 - **生命周期**: 记得处理 `api.ui.onLanguageChange` 释放的资源。
 - **ID 规范**: 使用反向域名命名空间，如 `com.yourname.tools`。
+
+## 7. 构建模式排障
+
+- **`build.enabled=true` 但插件未发布**
+  - 查看 `scripts/build_ui_plugins.mjs` 输出日志中的插件级错误。
+  - 确认 `build.command` 本地和 CI 均返回 `0`。
+- **`UI entry not found`**
+  - 检查 `build.output` 是否与 `capabilities.ui.entry` 完全一致。
+  - 确认构建产物文件位于插件目录内。
+- **本地可构建，CI 失败**
+  - 确认改动命中了 workflow 触发路径（`*.ts`、`*.tsx`、`*.js`、`plugin.yaml`、`scripts/**` 等）。
+  - 确认构建依赖已在仓库根 `package.json` 声明。
