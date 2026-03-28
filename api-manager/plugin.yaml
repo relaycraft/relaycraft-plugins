@@ -1,0 +1,32 @@
+schema_version: "v2"
+id: com.relaycraft.api-manager
+name: "API Workbench"
+version: "1.0.0"
+description: "API workbench with collections, environments, mock rules, and OpenAPI import."
+locales:
+  zh:
+    name: "API 工作台"
+    description: "面向调试与编排的 API 工作台，支持集合、环境变量、Mock 规则与 OpenAPI 导入。"
+author: "RelayCraft Team"
+icon: "BookOpen"
+engines:
+  relaycraft: ">=1.0.0-rc.13"
+capabilities:
+  ui:
+    entry: "index.js"
+  i18n:
+    namespace: api_manager
+    locales:
+      en: locales/en.json
+      zh: locales/zh.json
+permissions:
+  - "network:outbound"
+  - "rules:write"
+  - "proxy:read"
+
+build:
+  enabled: true
+  tool: "vite"
+  command: "pnpm -C .. run build:api-manager"
+  output: "index.js"
+  config: "vite.config.ts"

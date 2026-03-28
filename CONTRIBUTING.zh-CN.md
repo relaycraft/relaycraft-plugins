@@ -94,6 +94,7 @@ my-plugin/
 ## 3. 核心 API 参考 (`RelayCraft`)
 
 RelayCraft 为插件提供了两个核心全局对象：`RelayCraft.api`（功能）和 `RelayCraft.components`（标准 UI）。
+此外还提供 `RelayCraft.icons`（宿主受控图标集）。
 
 ### 3.1 `RelayCraft.api` 命名空间
 
@@ -126,6 +127,25 @@ API 已按功能领域划分为多个子模块：
 - **布局容器**: `Card`, `ScrollArea`, `Separator`, `Badge`, `Skeleton`.
 - **交互反馈**: `Tooltip`, `Popover`, `Dialog` (Modal), `Accordion`.
 - **高级导航**: `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`.
+
+### 3.2 `RelayCraft.icons`（宿主图标）
+插件可以直接使用宿主提供的图标组件：
+
+```javascript
+const { api, icons } = RelayCraft;
+
+api.ui.registerPage({
+  id: "demo",
+  name: "Demo",
+  route: "/demo",
+  icon: icons.BookOpen, // 无需手绘 SVG
+  component: DemoPage,
+});
+```
+
+说明：
+- 该图标集合是受控白名单，用于保障稳定性和设计一致性。
+- 建议优先使用 `RelayCraft.icons`，不建议插件自行打包整套图标库。
 
 ### 3.2 `RelayCraft.api.ui.components` (复杂专用组件)
 - **`Editor`**: 基于 CodeMirror 6 的全功能代码编辑器，支持语法高亮（JSON, JavaScript, Python 等）。

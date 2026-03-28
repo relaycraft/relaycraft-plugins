@@ -3,6 +3,7 @@
 
 # Node dependencies
 node_modules/
+.pnpm-store/
 
 # Python virtual env
 .venv/

@@ -68,6 +68,16 @@
                 }
             },
             "downloadCount": 14
+        },
+        {
+            "id": "com.relaycraft.api-manager",
+            "name": "API Manager",
+            "version": "1.0.0",
+            "description": "Lightweight API collection manager with environment variables and Swagger import.",
+            "author": "RelayCraft Team",
+            "icon": "BookOpen",
+            "category": "utility",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.api-manager/v1.0.0/com.relaycraft.api-manager-v1.0.0.rcplugin"
         }
     ]
 }

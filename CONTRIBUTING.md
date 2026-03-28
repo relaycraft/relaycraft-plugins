@@ -94,6 +94,7 @@ my-plugin/
 ## 3. Core API Reference (`RelayCraft`)
 
 RelayCraft exposes two core global objects: `RelayCraft.api` (functionality) and `RelayCraft.components` (standard UI).
+It also exposes `RelayCraft.icons` (curated icon set from the host).
 
 ### 3.1 `RelayCraft.api` Namespaces
 
@@ -126,6 +127,25 @@ To ensure consistency with the main application, please prioritize using the fol
 - **Layout Containers**: `Card`, `ScrollArea`, `Separator`, `Badge`, `Skeleton`.
 - **Interaction**: `Tooltip`, `Popover`, `Dialog` (Modal), `Accordion`.
 - **Advanced Navigation**: `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`.
+
+### 3.2 `RelayCraft.icons` (Host-Curated Icons)
+Plugins can directly use host-provided icon components:
+
+```javascript
+const { api, icons } = RelayCraft;
+
+api.ui.registerPage({
+  id: "demo",
+  name: "Demo",
+  route: "/demo",
+  icon: icons.BookOpen, // no need to hand-draw SVG
+  component: DemoPage,
+});
+```
+
+Notes:
+- This is a curated set for stability and design consistency.
+- Prefer `RelayCraft.icons` over bundling your own icon library.
 
 ### 3.2 `RelayCraft.api.ui.components` (Complex Components)
 - **`Editor`**: A fully functional code editor based on CodeMirror 6, supporting syntax highlighting (JSON, JavaScript, Python, etc.).
