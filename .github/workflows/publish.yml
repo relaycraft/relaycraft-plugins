@@ -9,6 +9,7 @@ on:
       - '**/*.js'
       - '**/*.ts'
       - '**/*.tsx'
+      - '**/*.css'
       - '**/locales/**'
       - '**/settings.json'
       - '**/*.svg'

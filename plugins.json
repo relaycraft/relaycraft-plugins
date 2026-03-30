@@ -72,7 +72,7 @@
         {
             "id": "com.relaycraft.api-manager",
             "name": "API Manager",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "description": "Lightweight API collection manager with environment variables and Swagger import.",
             "author": "RelayCraft Team",
             "icon": "BookOpen",
