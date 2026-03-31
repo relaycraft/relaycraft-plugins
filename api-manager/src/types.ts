@@ -36,6 +36,11 @@ export type ApiRequest = {
   updatedAt: number;
 };
 
+export type ImportedApiRequest = {
+  request: ApiRequest;
+  tag?: string | null;
+};
+
 export type ApiCollection = {
   id: string;
   name: string;

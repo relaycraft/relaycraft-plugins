@@ -62,6 +62,7 @@
   "import_invalid_json": "返回内容不是合法 JSON",
   "import_not_openapi": "返回内容不是 OpenAPI 文档",
   "import_html_document_hint": "当前 URL 返回的是文档页面 HTML，请改用 JSON 地址（如 /swagger.json、/openapi.json、/v3/api-docs）",
+  "import_folder_untagged": "未分组",
   "search_requests": "搜索接口名称 / URL / 方法",
   "double_click_rename": "双击重命名",
   "clone_request": "克隆接口",

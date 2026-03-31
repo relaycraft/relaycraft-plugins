@@ -62,6 +62,7 @@
   "import_invalid_json": "Response is not valid JSON",
   "import_not_openapi": "Response is not an OpenAPI document",
   "import_html_document_hint": "This URL returns an HTML docs page. Please use JSON endpoint (for example /swagger.json, /openapi.json, /v3/api-docs)",
+  "import_folder_untagged": "Untagged",
   "search_requests": "Search by name / URL / method",
   "double_click_rename": "Double-click to rename",
   "clone_request": "Clone Request",

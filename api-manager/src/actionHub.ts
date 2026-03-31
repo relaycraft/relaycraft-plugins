@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ApiCollection, ApiRequest, Environment, PostExtractRule, RunnerResult } from "./types";
+import type { ApiCollection, ApiRequest, Environment, ImportedApiRequest, PostExtractRule, RunnerResult } from "./types";
 import { appendParamsToUrl, applyAuth, buildCurlCommand, extractRequestName, FORM_BODY_TYPE, normalizeRequestBodyType, parseFormBodyItems, resolveVariables as resolveVars, serializeFormBodyItems } from "./utils";
 import { isPostmanCollection, parsePostmanCollection } from "./services/postman";
 
@@ -7,7 +7,7 @@ type Deps = {
   storage: any;
   api: any;
   t: (key: string, opts?: Record<string, unknown>) => string;
-  parseOpenApi: (spec: any, generateId: () => string) => ApiRequest[];
+  parseOpenApi: (spec: any, generateId: () => string) => ImportedApiRequest[];
   generateId: () => string;
   resolveVariables: (text: string, variables: Record<string, string>) => string;
   runnerAbortRef: { current: boolean };
@@ -91,6 +91,47 @@ export function createActionHub(deps: Deps) {
     } catch {
       throw new Error(t("import_invalid_json"));
     }
+  };
+
+  const mergeImportedRequests = (
+    target: ApiCollection,
+    items: ImportedApiRequest[],
+    options?: { defaultFolderName?: string; keepUngroupedAtRoot?: boolean },
+  ): ApiCollection => {
+    const folderNameToFolder = new Map(
+      (target.folders || []).map((folder) => [folder.name, { ...folder, requests: [...(folder.requests || [])] }]),
+    );
+    const nextRootRequests = [...(target.requests || [])];
+
+    for (const item of items) {
+      const rawGroupName = String(item.tag || "").trim();
+      const groupName =
+        rawGroupName || (options?.keepUngroupedAtRoot ? "" : options?.defaultFolderName || "");
+
+      if (!groupName) {
+        nextRootRequests.push(item.request);
+        continue;
+      }
+
+      const existingFolder = folderNameToFolder.get(groupName);
+      if (existingFolder) {
+        existingFolder.requests.push(item.request);
+        continue;
+      }
+
+      folderNameToFolder.set(groupName, {
+        id: generateId(),
+        name: groupName,
+        requests: [item.request],
+      });
+    }
+
+    return {
+      ...target,
+      requests: nextRootRequests,
+      folders: Array.from(folderNameToFolder.values()),
+      updatedAt: Date.now(),
+    };
   };
 
   const buildSwaggerUrlCandidates = (inputUrl: string) => {
@@ -571,7 +612,7 @@ export function createActionHub(deps: Deps) {
     const target = await storage.getCollection(targetId);
     if (!target) return api.ui.toast(t("import_error"), "error");
     try {
-      let parsed: ApiRequest[] = [];
+      let importedRequests: ImportedApiRequest[] = [];
 
       if (importFormat === "postman") {
         let doc: any = null;
@@ -586,8 +627,8 @@ export function createActionHub(deps: Deps) {
           doc = parseOpenApiDocument(importText);
         }
         if (!isPostmanCollection(doc)) throw new Error(t("import_not_postman"));
-        parsed = parsePostmanCollection(doc, generateId);
-        if (parsed.length === 0) throw new Error(t("import_no_paths"));
+        importedRequests = parsePostmanCollection(doc, generateId);
+        if (importedRequests.length === 0) throw new Error(t("import_no_paths"));
       } else {
         // openapi (default)
         let spec: any = null;
@@ -614,15 +655,20 @@ export function createActionHub(deps: Deps) {
         } else {
           spec = parseOpenApiDocument(importText);
         }
-        parsed = parseOpenApi(spec, generateId);
-        if (parsed.length === 0) throw new Error(t("import_no_paths"));
+        importedRequests = parseOpenApi(spec, generateId);
+        if (importedRequests.length === 0) throw new Error(t("import_no_paths"));
       }
 
-      const next = { ...target, requests: [...target.requests, ...parsed], updatedAt: Date.now() };
+      const next =
+        importFormat === "postman"
+          ? mergeImportedRequests(target, importedRequests, { keepUngroupedAtRoot: true })
+          : mergeImportedRequests(target, importedRequests, {
+              defaultFolderName: t("import_folder_untagged"),
+            });
       await storage.saveCollection(next);
       await refreshIndexAndMaybeReload(next.id);
       setState.setImportOpen(false);
-      api.ui.toast(t("import_success", { count: parsed.length }), "success");
+      api.ui.toast(t("import_success", { count: importedRequests.length }), "success");
     } catch (e: any) {
       api.ui.toast(`${t("import_error")}: ${e?.message || String(e)}`, "error");
     }

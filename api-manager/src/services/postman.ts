@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ApiRequest, HeaderItem } from "../types";
+import type { ApiRequest, HeaderItem, ImportedApiRequest } from "../types";
 import type { RequestBodyType } from "../utils";
 
 type PostmanUrl = string | { raw?: string };
@@ -59,12 +59,13 @@ function parsePostmanBody(body: PostmanBody | undefined): { bodyType: RequestBod
   return { bodyType: "none", body: null };
 }
 
-function flattenItems(items: PostmanItem[], generateId: () => string): ApiRequest[] {
-  const requests: ApiRequest[] = [];
+function flattenItems(items: PostmanItem[], generateId: () => string, parentFolderPath: string | null = null): ImportedApiRequest[] {
+  const requests: ImportedApiRequest[] = [];
   for (const item of items) {
     if (Array.isArray(item.item)) {
-      // folder — recurse into nested items
-      requests.push(...flattenItems(item.item, generateId));
+      const folderName = String(item.name || "").trim() || "Folder";
+      const nextFolderPath = parentFolderPath ? `${parentFolderPath} / ${folderName}` : folderName;
+      requests.push(...flattenItems(item.item, generateId, nextFolderPath));
     } else if (item.request) {
       const req = item.request;
       const url = getUrlRaw(req.url);
@@ -76,7 +77,7 @@ function flattenItems(items: PostmanItem[], generateId: () => string): ApiReques
         typeof req.description === "string"
           ? req.description
           : (req.description as any)?.content || undefined;
-      requests.push({
+      const request: ApiRequest = {
         id: generateId(),
         name: item.name || url || "Request",
         method: (req.method || "GET").toUpperCase(),
@@ -88,13 +89,17 @@ function flattenItems(items: PostmanItem[], generateId: () => string): ApiReques
         postExtract: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
+      };
+      requests.push({
+        request,
+        tag: parentFolderPath,
       });
     }
   }
   return requests;
 }
 
-export function parsePostmanCollection(doc: any, generateId: () => string): ApiRequest[] {
+export function parsePostmanCollection(doc: any, generateId: () => string): ImportedApiRequest[] {
   if (!doc?.item) return [];
   return flattenItems(doc.item as PostmanItem[], generateId);
 }

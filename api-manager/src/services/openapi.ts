@@ -1,7 +1,7 @@
-import type { ApiRequest } from "../types";
+import type { ApiRequest, ImportedApiRequest } from "../types";
 
-export function parseOpenApi(spec: any, generateId: () => string): ApiRequest[] {
-  const requests: ApiRequest[] = [];
+export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRequest[] {
+  const requests: ImportedApiRequest[] = [];
   const paths = spec?.paths || {};
   for (const [path, pathItem] of Object.entries(paths)) {
     for (const method of ["get", "post", "put", "delete", "patch", "head", "options"]) {
@@ -14,7 +14,7 @@ export function parseOpenApi(spec: any, generateId: () => string): ApiRequest[] 
       const reqBody = operation.requestBody?.content?.["application/json"];
       const bodyExample = reqBody?.example ?? reqBody?.schema?.example;
       const body = bodyExample ? JSON.stringify(bodyExample, null, 2) : null;
-      requests.push({
+      const request: ApiRequest = {
         id: generateId(),
         name: operation.summary || `${method.toUpperCase()} ${path}`,
         method: method.toUpperCase(),
@@ -25,6 +25,11 @@ export function parseOpenApi(spec: any, generateId: () => string): ApiRequest[] 
         description: operation.description || "",
         createdAt: Date.now(),
         updatedAt: Date.now(),
+      };
+      const tag = Array.isArray(operation.tags) && operation.tags.length > 0 ? String(operation.tags[0] || "").trim() || null : null;
+      requests.push({
+        request,
+        tag,
       });
     }
   }
