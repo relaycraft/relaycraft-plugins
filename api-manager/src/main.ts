@@ -30,6 +30,8 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
 
   const icons = createIcons(el, HostIcons);
   const storage = new ApiManagerStorage(api);
+  type DraftPair = [string, string];
+  type EnvDraftItem = Environment & { variableRows: DraftPair[] };
 
   // Mirrors defaultCollectionId React state so context menu can read it without App being mounted
   let _defaultCollectionId: string | null = null;
@@ -114,8 +116,9 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
     const [globalVariables, setGlobalVariables] = useState<Record<string, string>>({});
     const [activeEnvId, setActiveEnvId] = useState("none");
     const [envOpen, setEnvOpen] = useState(false);
-    const [envDraft, setEnvDraft] = useState<Environment[]>([]);
+    const [envDraft, setEnvDraft] = useState<EnvDraftItem[]>([]);
     const [globalDraft, setGlobalDraft] = useState<Record<string, string>>({});
+    const [globalDraftRows, setGlobalDraftRows] = useState<DraftPair[]>([]);
     const [envEditingId, setEnvEditingId] = useState<string | null>(null);
 
     const [importOpen, setImportOpen] = useState(false);
@@ -142,6 +145,7 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
     const [moveRequestTargetId, setMoveRequestTargetId] = useState("");
     const [mockOpen, setMockOpen] = useState(false);
     const [mockDraft, setMockDraft] = useState<any>(null);
+    const [urlDraft, setUrlDraft] = useState("");
     const [historySelection, setHistorySelection] = useState("");
     const [responseTab, setResponseTab] = useState<"body" | "headers">("body");
     const [recentClonedRequestId, setRecentClonedRequestId] = useState("");
@@ -229,11 +233,20 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
 
     useEffect(() => {
       if (!envOpen) return;
-      const cloned = environments.map((x: Environment) => ({ ...x, variables: { ...(x.variables || {}) } }));
+      const cloned = environments.map((x: Environment) => ({
+        ...x,
+        variables: { ...(x.variables || {}) },
+        variableRows: Object.entries(x.variables || {}) as DraftPair[],
+      }));
       setEnvDraft(cloned);
       setGlobalDraft({ ...(globalVariables || {}) });
+      setGlobalDraftRows(Object.entries(globalVariables || {}) as DraftPair[]);
       setEnvEditingId(cloned[0]?.id || null);
     }, [envOpen, environments, globalVariables]);
+
+    useEffect(() => {
+      setUrlDraft(activeRequest?.url || "");
+    }, [activeRequest?.id, activeRequest?.url]);
 
     // Persist active collection/request across page navigations
     useEffect(() => {
@@ -480,9 +493,10 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
           Editor,
           Tooltip,
           icons,
-          state: { activeRequest, sending, collections, activeCollection, proxyActive },
+          state: { activeRequest, sending, collections, activeCollection, proxyActive, urlDraft },
           actions: {
             updateRequest: actionHub.updateRequest,
+            setUrlDraft,
             sendRequest: async () => {
               if (!proxyActive) {
                 api.ui.toast(t("send_disabled_proxy_inactive"), "warning");
@@ -563,8 +577,8 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
         Button,
         Input,
         icons,
-        state: { envOpen, envDraft, globalDraft, envEditingId, activeEnvId },
-        actions: { setEnvOpen, setEnvDraft, setGlobalDraft, setEnvEditingId, setEnvironments, setGlobalVariables, setActiveEnvId: updateActiveEnvId, storage },
+        state: { envOpen, envDraft, globalDraft, globalDraftRows, envEditingId, activeEnvId },
+        actions: { setEnvOpen, setEnvDraft, setGlobalDraft, setGlobalDraftRows, setEnvEditingId, setEnvironments, setGlobalVariables, setActiveEnvId: updateActiveEnvId, storage },
       }),
       renderRunnerModal({
         el,
@@ -595,6 +609,7 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
       renderMockModal({
         el,
         t,
+        hooks: { useEffect, useState },
         Button,
         Input,
         Select,

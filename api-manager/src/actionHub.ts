@@ -106,7 +106,6 @@ export function createActionHub(deps: Deps) {
       const path = parsed.pathname.replace(/\/+$/, "");
       const origin = parsed.origin;
       if (!/\.json$/i.test(path)) {
-        if (path) push(`${origin}${path}.json`);
         push(`${origin}/swagger.json`);
         push(`${origin}/openapi.json`);
         push(`${origin}/v3/api-docs`);
@@ -484,6 +483,7 @@ export function createActionHub(deps: Deps) {
     if (!activeRequest?.id) return;
     const nextHistory = await storage.clearRequestHistoryBySource(activeRequest.id);
     setState.setRequestHistory(nextHistory);
+    setState.setResponse(null);
     api.ui.toast(t("history_cleared"), "success");
   }
 

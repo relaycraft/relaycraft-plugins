@@ -440,8 +440,8 @@ export function renderRequestEditor(ctx: any) {
     child: any,
     options?: { side?: "top" | "bottom" | "left" | "right"; className?: string; multiline?: boolean },
   ) => (Tooltip ? el(Tooltip, { content, ...options }, child) : child);
-  const { activeRequest, sending, collections, activeCollection, proxyActive } = state;
-  const { updateRequest, sendRequest, cloneActiveRequest, copyAsCurl } = actions;
+  const { activeRequest, sending, collections, activeCollection, proxyActive, urlDraft } = state;
+  const { updateRequest, setUrlDraft, sendRequest, cloneActiveRequest, copyAsCurl } = actions;
   if (!activeRequest) {
     if (!Array.isArray(collections) || collections.length === 0) {
       return el(
@@ -552,8 +552,17 @@ export function renderRequestEditor(ctx: any) {
         Input
           ? el(Input, {
               className: "flex-1 min-w-0 h-9 text-ui",
-              value: activeRequest.url,
-              onChange: (e: any) => updateRequest({ url: e.target.value }),
+              value: urlDraft,
+              onChange: (e: any) => setUrlDraft(e.target.value),
+              onBlur: () => {
+                if (urlDraft !== activeRequest.url) void updateRequest({ url: urlDraft });
+              },
+              onKeyDown: (e: any) => {
+                if (e.key === "Enter" && urlDraft !== activeRequest.url) {
+                  e.preventDefault();
+                  void updateRequest({ url: urlDraft });
+                }
+              },
               placeholder: t("url_placeholder"),
             })
           : null,

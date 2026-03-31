@@ -151,14 +151,14 @@ export function renderFlowModal(ctx: any) {
 
 export function renderEnvModal(ctx: any) {
   const { el, t, Button, Input, icons, state, actions } = ctx;
-  const { envOpen, envDraft, globalDraft, envEditingId, activeEnvId } = state;
-  const { setEnvOpen, setEnvDraft, setGlobalDraft, setEnvEditingId, setEnvironments, setGlobalVariables, setActiveEnvId, storage } = actions;
+  const { envOpen, envDraft, globalDraft, globalDraftRows, envEditingId, activeEnvId } = state;
+  const { setEnvOpen, setEnvDraft, setGlobalDraft, setGlobalDraftRows, setEnvEditingId, setEnvironments, setGlobalVariables, setActiveEnvId, storage } = actions;
   const renderIcon = (IconComp: any, props: Record<string, unknown>) => (IconComp ? el(IconComp, props) : null);
   if (!envOpen) return null;
 
   const editing = envDraft.find((x: any) => x.id === envEditingId) || null;
-  const pairs = Object.entries(editing?.variables || {}) as Array<[string, string]>;
-  const globalPairs = Object.entries(globalDraft || {}) as Array<[string, string]>;
+  const pairs = (editing?.variableRows || Object.entries(editing?.variables || {})) as Array<[string, string]>;
+  const globalPairs = (globalDraftRows || Object.entries(globalDraft || {})) as Array<[string, string]>;
   const updatePairs = (nextPairs: Array<[string, string]>) => {
     if (!editing) return;
     const nextVariables: Record<string, string> = {};
@@ -166,7 +166,11 @@ export function renderEnvModal(ctx: any) {
       const key = (k || "").trim();
       if (key) nextVariables[key] = v || "";
     }
-    setEnvDraft((prev: any[]) => prev.map((x: any) => (x.id === editing.id ? { ...x, variables: nextVariables } : x)));
+    setEnvDraft((prev: any[]) =>
+      prev.map((x: any) =>
+        x.id === editing.id ? { ...x, variableRows: nextPairs, variables: nextVariables } : x,
+      ),
+    );
   };
   const createNextVariableKey = () => {
     const used = new Set(pairs.map(([key]) => (key || "").trim()).filter(Boolean));
@@ -184,6 +188,7 @@ export function renderEnvModal(ctx: any) {
       const key = (k || "").trim();
       if (key) nextVariables[key] = v || "";
     }
+    setGlobalDraftRows(nextPairs);
     setGlobalDraft(nextVariables);
   };
   const createNextGlobalVariableKey = () => {
@@ -271,7 +276,12 @@ export function renderEnvModal(ctx: any) {
                   variant: "outline",
                   size: "sm",
                   onClick: () => {
-                    const next = { id: crypto.randomUUID?.() || Date.now().toString(), name: t("add_environment"), variables: {} };
+                    const next = {
+                      id: crypto.randomUUID?.() || Date.now().toString(),
+                      name: t("add_environment"),
+                      variables: {},
+                      variableRows: [[createNextVariableKey(), ""]],
+                    };
                     setEnvDraft((prev: any[]) => [...prev, next]);
                     setEnvEditingId(next.id);
                   },
@@ -441,12 +451,18 @@ export function renderEnvModal(ctx: any) {
               Button,
               {
                 onClick: async () => {
-                  await storage.saveEnvironments(envDraft);
+                  const normalizedEnvs = envDraft.map((env: any) => ({
+                    id: env.id,
+                    name: env.name,
+                    variables: { ...(env.variables || {}) },
+                    ...(env.isActive !== undefined ? { isActive: env.isActive } : {}),
+                  }));
+                  await storage.saveEnvironments(normalizedEnvs);
                   await storage.saveGlobalVariables(globalDraft || {});
-                  setEnvironments(envDraft);
+                  setEnvironments(normalizedEnvs);
                   setGlobalVariables(globalDraft || {});
-                  if (!envDraft.some((x: any) => x.id === activeEnvId)) {
-                    setActiveEnvId(envDraft[0]?.id || "none");
+                  if (!normalizedEnvs.some((x: any) => x.id === activeEnvId)) {
+                    setActiveEnvId(normalizedEnvs[0]?.id || "none");
                   }
                   setEnvOpen(false);
                 },
@@ -698,18 +714,19 @@ export function renderMoveRequestModal(ctx: any) {
   );
 }
 
-export function renderMockModal(ctx: any) {
-  const { el, t, Button, Input, Select, Editor, icons, state, actions } = ctx;
-  const { mockOpen, mockDraft } = state;
-  const { setMockOpen, setMockDraft, confirmCreateMock } = actions;
-  const renderIcon = (IconComp: any, props: Record<string, unknown>) => (IconComp ? el(IconComp, props) : null);
-
-  if (!mockOpen || !mockDraft) return null;
-
-  const set = (key: string, value: any) => setMockDraft({ ...mockDraft, [key]: value });
-  const isValid = mockDraft.name?.trim() && mockDraft.urlPattern?.trim();
-
+function MockModalContent(props: any) {
+  const { el, t, hooks, Button, Input, Select, Editor, icons, mockDraft, setMockOpen, confirmCreateMock } = props;
+  const { useEffect, useState } = hooks;
+  const [draft, setDraft] = useState(mockDraft);
+  const renderIcon = (IconComp: any, iconProps: Record<string, unknown>) => (IconComp ? el(IconComp, iconProps) : null);
   const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+  useEffect(() => {
+    setDraft(mockDraft);
+  }, [mockDraft]);
+
+  const set = (key: string, value: any) => setDraft((prev: any) => ({ ...prev, [key]: value }));
+  const isValid = draft.name?.trim() && draft.urlPattern?.trim();
 
   return el(
     "div",
@@ -734,26 +751,23 @@ export function renderMockModal(ctx: any) {
         el(
           "div",
           { className: "flex flex-col gap-4" },
-          // Rule name
           el(
             "div",
             { className: "flex flex-col gap-1.5" },
             el("label", { className: "text-tiny font-medium text-muted-foreground uppercase tracking-wide" }, t("mock_rule_name")),
             Input
-              ? el(Input, { value: mockDraft.name, onChange: (e: any) => set("name", e.target.value), placeholder: t("mock_rule_name") })
-              : el("input", { className: "am-field", value: mockDraft.name, onChange: (e: any) => set("name", e.target.value) }),
+              ? el(Input, { value: draft.name, onChange: (e: any) => set("name", e.target.value), placeholder: t("mock_rule_name") })
+              : el("input", { className: "am-field", value: draft.name, onChange: (e: any) => set("name", e.target.value) }),
           ),
-          // URL Pattern
           el(
             "div",
             { className: "flex flex-col gap-1.5" },
             el("label", { className: "text-tiny font-medium text-muted-foreground uppercase tracking-wide" }, t("mock_url_pattern")),
             Input
-              ? el(Input, { value: mockDraft.urlPattern, onChange: (e: any) => set("urlPattern", e.target.value), placeholder: "https://api.example.com/users*" })
-              : el("input", { className: "am-field", value: mockDraft.urlPattern, onChange: (e: any) => set("urlPattern", e.target.value) }),
+              ? el(Input, { value: draft.urlPattern, onChange: (e: any) => set("urlPattern", e.target.value), placeholder: "https://api.example.com/users*" })
+              : el("input", { className: "am-field", value: draft.urlPattern, onChange: (e: any) => set("urlPattern", e.target.value) }),
             el("p", { className: "text-tiny text-muted-foreground mt-0.5" }, t("mock_url_pattern_hint")),
           ),
-          // Method + Status Code row
           el(
             "div",
             { className: "flex gap-3" },
@@ -764,13 +778,13 @@ export function renderMockModal(ctx: any) {
               Select
                 ? el(
                     Select,
-                    { value: mockDraft.method || "", onChange: (v: string) => set("method", v), className: "h-9 text-ui" },
+                    { value: draft.method || "", onChange: (v: string) => set("method", v), className: "h-9 text-ui" },
                     el("option", { value: "" }, t("mock_method_any")),
                     ...HTTP_METHODS.map((m) => el("option", { key: m, value: m }, m)),
                   )
                 : el(
                     "select",
-                    { className: "am-field", value: mockDraft.method || "", onChange: (e: any) => set("method", e.target.value) },
+                    { className: "am-field", value: draft.method || "", onChange: (e: any) => set("method", e.target.value) },
                     el("option", { value: "" }, t("mock_method_any")),
                     ...HTTP_METHODS.map((m) => el("option", { key: m, value: m }, m)),
                   ),
@@ -780,20 +794,18 @@ export function renderMockModal(ctx: any) {
               { className: "flex flex-col gap-1.5 w-1/2" },
               el("label", { className: "text-tiny font-medium text-muted-foreground uppercase tracking-wide" }, t("mock_status_code")),
               Input
-                ? el(Input, { type: "number", min: 100, max: 599, value: String(mockDraft.statusCode), onChange: (e: any) => set("statusCode", Number(e.target.value) || 200) })
-                : el("input", { type: "number", className: "am-field", value: mockDraft.statusCode, onChange: (e: any) => set("statusCode", Number(e.target.value) || 200) }),
+                ? el(Input, { type: "number", min: 100, max: 599, value: String(draft.statusCode), onChange: (e: any) => set("statusCode", Number(e.target.value) || 200) })
+                : el("input", { type: "number", className: "am-field", value: draft.statusCode, onChange: (e: any) => set("statusCode", Number(e.target.value) || 200) }),
             ),
           ),
-          // Content-Type
           el(
             "div",
             { className: "flex flex-col gap-1.5" },
             el("label", { className: "text-tiny font-medium text-muted-foreground uppercase tracking-wide" }, t("mock_content_type")),
             Input
-              ? el(Input, { value: mockDraft.contentType, onChange: (e: any) => set("contentType", e.target.value), placeholder: "application/json" })
-              : el("input", { className: "am-field", value: mockDraft.contentType, onChange: (e: any) => set("contentType", e.target.value) }),
+              ? el(Input, { value: draft.contentType, onChange: (e: any) => set("contentType", e.target.value), placeholder: "application/json" })
+              : el("input", { className: "am-field", value: draft.contentType, onChange: (e: any) => set("contentType", e.target.value) }),
           ),
-          // Response Body
           el(
             "div",
             { className: "flex flex-col gap-1.5" },
@@ -803,15 +815,15 @@ export function renderMockModal(ctx: any) {
               { style: { height: 180, flexShrink: 0, overflow: "hidden", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)" } },
               Editor
                 ? el(Editor, {
-                    value: mockDraft.responseBody,
+                    value: draft.responseBody,
                     onChange: (v: string) => set("responseBody", v ?? ""),
-                    language: (mockDraft.contentType || "").includes("json") ? "json" : "text",
+                    language: (draft.contentType || "").includes("json") ? "json" : "text",
                     height: "100%",
                   })
                 : el("textarea", {
                     className: "am-field w-full h-full resize-none border-0",
                     style: { height: "100%", fontFamily: "var(--font-mono)" },
-                    value: mockDraft.responseBody,
+                    value: draft.responseBody,
                     onChange: (e: any) => set("responseBody", e.target.value),
                   }),
             ),
@@ -825,7 +837,7 @@ export function renderMockModal(ctx: any) {
         Button
           ? el(
               Button,
-              { disabled: !isValid, onClick: () => void confirmCreateMock(mockDraft) },
+              { disabled: !isValid, onClick: () => void confirmCreateMock(draft) },
               renderIcon(icons?.Check, { width: 13, style: { marginRight: 4 } }),
               t("mock_create_confirm"),
             )
@@ -833,4 +845,26 @@ export function renderMockModal(ctx: any) {
       ),
     ),
   );
+}
+
+export function renderMockModal(ctx: any) {
+  const { el, t, hooks, Button, Input, Select, Editor, icons, state, actions } = ctx;
+  const { mockOpen, mockDraft } = state;
+  const { setMockOpen, confirmCreateMock } = actions;
+
+  if (!mockOpen || !mockDraft) return null;
+
+  return el(MockModalContent, {
+    el,
+    t,
+    hooks,
+    Button,
+    Input,
+    Select,
+    Editor,
+    icons,
+    mockDraft,
+    setMockOpen,
+    confirmCreateMock,
+  });
 }
