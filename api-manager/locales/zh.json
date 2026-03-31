@@ -54,6 +54,7 @@
   "save_flow_collection": "目标集合",
   "saved_to_collection": "已保存到集合",
   "mock_created": "Mock 规则已创建",
+  "mock_updated": "Mock 规则已更新",
   "mock_create_failed": "创建 Mock 规则失败",
   "import_select_collection": "请选择目标集合",
   "import_no_paths": "文档中未发现可导入的 paths",

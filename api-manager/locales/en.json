@@ -54,6 +54,7 @@
   "save_flow_collection": "Target Collection",
   "saved_to_collection": "Saved to collection",
   "mock_created": "Mock rule created",
+  "mock_updated": "Mock rule updated",
   "mock_create_failed": "Failed to create mock",
   "import_select_collection": "Select target collection",
   "import_no_paths": "No importable paths found in document",

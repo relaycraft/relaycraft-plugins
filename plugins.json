@@ -72,12 +72,12 @@
         {
             "id": "com.relaycraft.api-manager",
             "name": "API Workbench",
-            "version": "1.1.0",
+            "version": "1.1.1",
             "description": "API workbench with collections, environments, mock rules, and OpenAPI import.",
             "author": "RelayCraft Team",
             "icon": "BookOpen",
             "category": "utility",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.api-manager/v1.1.0/com.relaycraft.api-manager-v1.1.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.api-manager/v1.1.1/com.relaycraft.api-manager-v1.1.1.rcplugin",
             "downloadCount": 0
         }
     ]

@@ -75,6 +75,7 @@ export type PathParamMeta = {
 export type ApiRequest = {
   id: string;
   name: string;
+  mockRuleId?: string;
   method: string;
   url: string;
   headers: HeaderItem[];

@@ -104,6 +104,9 @@ export function renderSidebar(ctx: any) {
       finalizePointerReorder();
       _suppressClickUntil = Date.now() + 250;
     }
+    clearPointerDrag();
+  };
+  const cancelPointerSession = () => {
     window.removeEventListener("pointermove", handlePointerMove);
     clearPointerDrag();
   };
@@ -211,10 +214,11 @@ export function renderSidebar(ctx: any) {
                     onPointerDown: (e: any) => startPointerDrag("collection", c.id, e),
                     onPointerUp: () => {
                       if (_drag?.type === "collection" && _drag.id !== c.id) reorderCollections(_drag.id, c.id);
-                      _drag = null;
+                      cancelPointerSession();
                     },
                     onClick: () => {
                       if (shouldSuppressClick()) return;
+                      cancelPointerSession();
                       selectCollection(c.id);
                     },
                     onMouseEnter: () => setHoveredCollectionId(c.id),
@@ -336,10 +340,11 @@ export function renderSidebar(ctx: any) {
                           onPointerDown: (e: any) => startPointerDrag("request", r.id, e),
                           onPointerUp: () => {
                             if (_drag?.type === "request" && _drag.id !== r.id) reorderRequests(_drag.id, r.id);
-                            _drag = null;
+                            cancelPointerSession();
                           },
                           onClick: () => {
                             if (shouldSuppressClick()) return;
+                            cancelPointerSession();
                             setActiveRequest(r);
                           },
                           onMouseEnter: () => setHoveredRequestId(r.id),
@@ -399,11 +404,11 @@ export function renderSidebar(ctx: any) {
                               onPointerUp: (e: any) => {
                                 e.stopPropagation();
                                 if (_drag?.type === "folder" && _drag.id !== folder.id) reorderFolders(_drag.id, folder.id);
-                                _drag = null;
-                                _dragOverTarget = null;
+                                cancelPointerSession();
                               },
                               onClick: () => {
                                 if (shouldSuppressClick()) return;
+                                cancelPointerSession();
                                 toggleFolder(folder.id);
                               },
                               style: {

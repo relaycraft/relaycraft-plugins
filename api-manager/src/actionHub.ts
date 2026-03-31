@@ -545,6 +545,7 @@ export function createActionHub(deps: Deps) {
     const { activeRequest, response } = getState();
     if (!activeRequest || !response) return;
     setState.setMockDraft({
+      ruleId: activeRequest.mockRuleId,
       name: `Mock: ${activeRequest.name}`,
       urlPattern: activeRequest.url.replace(/\{\{[^}]+\}\}/g, "*"),
       method: activeRequest.method,
@@ -556,7 +557,9 @@ export function createActionHub(deps: Deps) {
   }
 
   async function confirmCreateMock(config: any) {
-    await api.rules.createMock({
+    const { activeRequest } = getState();
+    const ruleId = await api.rules.createMock({
+      ruleId: config.ruleId || activeRequest?.mockRuleId || undefined,
       name: config.name,
       urlPattern: config.urlPattern,
       method: config.method || undefined,
@@ -564,8 +567,11 @@ export function createActionHub(deps: Deps) {
       statusCode: Number(config.statusCode) || 200,
       contentType: config.contentType || "application/json",
     });
+    if (activeRequest && ruleId && activeRequest.mockRuleId !== ruleId) {
+      await updateRequest({ mockRuleId: ruleId });
+    }
     setState.setMockOpen(false);
-    api.ui.toast(t("mock_created"), "success");
+    api.ui.toast(t(activeRequest?.mockRuleId ? "mock_updated" : "mock_created"), "success");
   }
 
   async function copyAsCurl() {
