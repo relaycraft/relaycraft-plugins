@@ -493,6 +493,21 @@ export function renderRequestEditor(ctx: any) {
   const activeBodyType = normalizeRequestBodyType(activeRequest.bodyType);
   const requestParams: ParamItem[] = activeRequest.params || [];
   const requestAuth: AuthConfig = activeRequest.auth || { type: "none" };
+  const closeRequestMenu = (event?: any) => {
+    const details = event?.currentTarget?.closest?.("details");
+    if (details?.removeAttribute) details.removeAttribute("open");
+  };
+  const requestMoreActions = [
+    {
+      key: "export-curl",
+      label: t("export_curl"),
+      icon: icons.Terminal || icons.Code,
+      onClick: (e?: any) => {
+        closeRequestMenu(e);
+        copyAsCurl();
+      },
+    },
+  ];
   const formItems = activeBodyType === FORM_BODY_TYPE ? parseFormBodyItems(activeRequest.body) : [];
   const updateFormItems = (nextItems: Array<{ key: string; value: string; enabled: boolean }>) => {
     updateRequest({ bodyType: FORM_BODY_TYPE, body: JSON.stringify(nextItems) });
@@ -529,9 +544,72 @@ export function renderRequestEditor(ctx: any) {
     { className: "flex-1 flex flex-col min-h-0 p-4 gap-3 overflow-visible text-ui" },
     el(
       "div",
-      { className: "am-name-row" },
+      { className: "am-name-row gap-2" },
       el("span", { className: "w-16 shrink-0 text-ui text-muted-foreground" }, t("request_name")),
       Input ? el(Input, { className: "flex-1 h-9 text-ui", value: activeRequest.name, onChange: (e: any) => updateRequest({ name: e.target.value }) }) : null,
+      Button
+        ? tip(
+            t("clone_request"),
+            el(
+              Button,
+              {
+                variant: "outline",
+                onClick: cloneActiveRequest,
+                "aria-label": t("clone_request"),
+                className: "am-icon-btn h-8 w-8 p-0 shrink-0",
+              },
+              renderIcon(icons.FilePlus || icons.File, { width: 13 }) || "+",
+            ),
+          )
+        : null,
+      requestMoreActions.length > 1
+        ? el(
+            "details",
+            { className: "relative shrink-0" },
+            el(
+              "summary",
+              {
+                className: "am-icon-btn flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md border border-border/50 bg-background/60 text-muted-foreground transition hover:text-foreground",
+                "aria-label": t("actions"),
+              },
+              renderIcon(icons.MoreHorizontal, { width: 13 }) || "⋯",
+            ),
+            el(
+              "div",
+              {
+                className: "absolute right-0 top-[calc(100%+6px)] z-30 min-w-[150px] overflow-hidden rounded-lg border bg-background/95 p-1 shadow-lg backdrop-blur",
+                style: { borderColor: "color-mix(in srgb, var(--color-border) 55%, transparent)" },
+              },
+              ...requestMoreActions.map((action) =>
+                el(
+                  "button",
+                  {
+                    key: action.key,
+                    type: "button",
+                    className: "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-tiny text-foreground/85 transition hover:bg-muted/50",
+                    onClick: action.onClick,
+                  },
+                  renderIcon(action.icon, { width: 13, className: "shrink-0" }) || null,
+                  el("span", { className: "truncate" }, action.label),
+                ),
+              ),
+            ),
+          )
+        : requestMoreActions.length === 1 && Button
+          ? tip(
+              requestMoreActions[0].label,
+              el(
+                Button,
+                {
+                  variant: "outline",
+                  onClick: () => requestMoreActions[0].onClick(),
+                  "aria-label": requestMoreActions[0].label,
+                  className: "am-icon-btn h-8 w-8 p-0 shrink-0",
+                },
+                renderIcon(requestMoreActions[0].icon, { width: 13 }) || null,
+              ),
+            )
+          : null,
     ),
     el(
       "div",
@@ -565,36 +643,6 @@ export function renderRequestEditor(ctx: any) {
               },
               placeholder: t("url_placeholder"),
             })
-          : null,
-        Button
-          ? tip(
-              t("clone_request"),
-              el(
-                Button,
-                {
-                  variant: "outline",
-                  onClick: cloneActiveRequest,
-                  "aria-label": t("clone_request"),
-                  className: "am-icon-btn h-9 w-9 p-0 shrink-0",
-                },
-                renderIcon(icons.Copy, { width: 14 }) || "⧉",
-              ),
-            )
-          : null,
-        Button
-          ? tip(
-              t("copy_as_curl"),
-              el(
-                Button,
-                {
-                  variant: "outline",
-                  onClick: copyAsCurl,
-                  "aria-label": t("copy_as_curl"),
-                  className: "am-icon-btn h-9 w-9 p-0 shrink-0",
-                },
-                renderIcon(icons.Code, { width: 14 }) || "{}",
-              ),
-            )
           : null,
         Button
           ? tip(
@@ -1101,6 +1149,7 @@ export function renderRequestEditor(ctx: any) {
 
 export function renderResponsePanel(ctx: any) {
   const { el, t, Button, Select, Editor, Tooltip, icons, state, actions } = ctx;
+  const MAX_FORMATTABLE_RESPONSE_SIZE = 300 * 1024;
   const tip = (content: string, child: any) => (Tooltip ? el(Tooltip, { content }, child) : child);
   const { response, activeRequest, requestHistory, historySelection, responseTab } = state;
   const { openMockModal, setHistorySelection, setResponseTab, applyHistoryToActiveRequest, removeRequestHistory, clearActiveRequestHistory } = actions;
@@ -1118,6 +1167,26 @@ export function renderResponsePanel(ctx: any) {
       }
     : null;
   const displayResponse = previewResponse || response;
+  const getHeaderValue = (headers: Record<string, any> | undefined, headerName: string) => {
+    const target = headerName.toLowerCase();
+    const matchedKey = Object.keys(headers || {}).find((key) => key.toLowerCase() === target);
+    return matchedKey ? String(headers?.[matchedKey] || "") : "";
+  };
+  const formatResponseBody = (body: any, headers: Record<string, any> | undefined) => {
+    const raw = String(body || "");
+    if (!raw.trim()) return raw;
+    if (raw.length > MAX_FORMATTABLE_RESPONSE_SIZE) return raw;
+    const contentType = getHeaderValue(headers, "content-type");
+    const looksJson = contentType.includes("json") || /^[\[{]/.test(raw.trim());
+    if (!looksJson) return raw;
+    try {
+      return JSON.stringify(JSON.parse(raw), null, 2);
+    } catch {
+      return raw;
+    }
+  };
+  const displayBody = formatResponseBody(displayResponse?.body, displayResponse?.headers);
+  const displayLanguage = getHeaderValue(displayResponse?.headers, "content-type").includes("json") ? "json" : "text";
   const formatHistoryLabel = (item: any) => {
     const status = Number(item?.result?.status || 0);
     const time = Number(item?.result?.time || 0);
@@ -1150,6 +1219,21 @@ export function renderResponsePanel(ctx: any) {
       el(
         "div",
         { className: "flex items-center gap-2 shrink-0" },
+        displayResponse
+          ? tip(
+              t("copy_response_body"),
+              el(
+                "button",
+                {
+                  type: "button",
+                  className: "am-icon-btn h-8 w-8 p-0 shrink-0",
+                  onClick: () => void navigator.clipboard?.writeText(displayBody || ""),
+                  "aria-label": t("copy_response_body"),
+                },
+                renderIcon(icons.Copy, { width: 13 }) || "⧉",
+              ),
+            )
+          : null,
         displayResponse
           ? el(
               "div",
@@ -1302,13 +1386,13 @@ export function renderResponsePanel(ctx: any) {
                 "div",
                 { className: "am-response-body am-response-body--editor flex-1 min-h-0" },
                 el(Editor, {
-                  value: displayResponse.body || "",
-                  language: String(displayResponse.headers?.["content-type"] || "").includes("json") ? "json" : "text",
+                  value: displayBody,
+                  language: displayLanguage,
                   readOnly: true,
                   height: "100%",
                 }),
               )
-            : el("pre", { className: "am-response-body text-foreground/90 text-ui whitespace-pre-wrap" }, displayResponse.body || ""),
+            : el("pre", { className: "am-response-body text-foreground/90 text-ui whitespace-pre-wrap" }, displayBody),
     ),
   );
 }

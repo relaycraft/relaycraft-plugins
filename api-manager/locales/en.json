@@ -95,7 +95,7 @@
   "run_collection": "Run Collection",
   "move_to_collection": "Move to collection",
   "request_moved": "Request moved",
-  "copy_as_curl": "Copy as cURL",
+  "export_curl": "Export as cURL",
   "curl_copied": "cURL copied",
   "import_title": "Import APIs",
   "import_apis": "Import APIs",
@@ -148,5 +148,6 @@
   "mock_content_type": "Mock Content-Type",
   "mock_response_body": "Mock Response Body",
   "mock_create_confirm": "Create Mock Rule",
-  "send_disabled_proxy_inactive": "Proxy is off"
+  "send_disabled_proxy_inactive": "Proxy is off",
+  "copy_response_body": "Copy response body"
 }

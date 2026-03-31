@@ -95,7 +95,7 @@
   "run_collection": "运行集合",
   "move_to_collection": "移动到集合",
   "request_moved": "请求已移动",
-  "copy_as_curl": "复制为 cURL",
+  "export_curl": "导出 cURL",
   "curl_copied": "已复制 cURL",
   "import_title": "导入接口",
   "import_apis": "导入接口",
@@ -148,5 +148,6 @@
   "mock_content_type": "响应 Content-Type",
   "mock_response_body": "响应内容",
   "mock_create_confirm": "创建 Mock 规则",
-  "send_disabled_proxy_inactive": "监听未开启"
+  "send_disabled_proxy_inactive": "监听未开启",
+  "copy_response_body": "复制响应体"
 }

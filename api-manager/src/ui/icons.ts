@@ -18,6 +18,7 @@ export function createIcons(_el: (...args: any[]) => any, hostIcons?: Record<str
     Plus: pickIcon(hostIcons, "Plus"),
     Folder: pickIcon(hostIcons, "Folder"),
     File: pickIcon(hostIcons, "File"),
+    FilePlus: pickFirstIcon(hostIcons, ["FilePlus", "FilePlus2", "SquarePlus"]),
     Link: pickIcon(hostIcons, "Link"),
     Trash: pickFirstIcon(hostIcons, ["Trash2", "Trash"]),
     Settings: pickIcon(hostIcons, "Settings"),
@@ -30,6 +31,7 @@ export function createIcons(_el: (...args: any[]) => any, hostIcons?: Record<str
     Send: pickFirstIcon(hostIcons, ["Send", "SendHorizontal", "ArrowUpRight"]),
     History: pickFirstIcon(hostIcons, ["History", "Clock3", "Clock"]),
     Code: pickFirstIcon(hostIcons, ["Code2", "Code", "Braces"]),
+    Terminal: pickFirstIcon(hostIcons, ["Terminal", "SquareTerminal", "Command"]),
     Play: pickFirstIcon(hostIcons, ["Play", "PlayCircle", "Triangle"]),
     Square: pickFirstIcon(hostIcons, ["Square", "StopCircle", "CircleStop"]),
     Bookmark: pickFirstIcon(hostIcons, ["Bookmark", "BookmarkCheck"]),
@@ -40,5 +42,6 @@ export function createIcons(_el: (...args: any[]) => any, hostIcons?: Record<str
     ChevronRight: pickFirstIcon(hostIcons, ["ChevronRight", "ArrowRight"]),
     ChevronDown: pickFirstIcon(hostIcons, ["ChevronDown", "ArrowDown"]),
     GripVertical: pickFirstIcon(hostIcons, ["GripVertical", "Grip", "GripHorizontal"]),
+    MoreHorizontal: pickFirstIcon(hostIcons, ["MoreHorizontal", "Ellipsis", "EllipsisVertical"]),
   };
 }
