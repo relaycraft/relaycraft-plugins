@@ -4,7 +4,7 @@ import type { RunnerResult } from "../types";
 
 export function renderImportModal(ctx: any) {
   const { el, t, Button, Input, Textarea, Select, Editor, icons, state, actions } = ctx;
-  const { importOpen, importFormat, importMode, importUrl, importText, importTargetCollectionId, collections } = state;
+  const { importOpen, importing, importFormat, importMode, importUrl, importText, importTargetCollectionId, collections } = state;
   const { setImportOpen, setImportFormat, setImportMode, setImportUrl, setImportText, setImportTargetCollectionId, importCollection } = actions;
   const renderIcon = (IconComp: any, props: Record<string, unknown>) => (IconComp ? el(IconComp, props) : null);
   if (!importOpen) return null;
@@ -14,7 +14,7 @@ export function renderImportModal(ctx: any) {
   return el(
     "div",
     { className: "am-modal-overlay" },
-    el("div", { className: "am-modal-backdrop", onClick: () => setImportOpen(false) }),
+    el("div", { className: "am-modal-backdrop", onClick: () => !importing && setImportOpen(false) }),
     el(
       "div",
       { className: "am-modal-shell am-modal-shell--lg" },
@@ -22,7 +22,7 @@ export function renderImportModal(ctx: any) {
         "div",
         { className: "am-modal-header" },
         el("h3", null, t("import_title")),
-        el("button", { type: "button", className: "am-modal-close", onClick: () => setImportOpen(false), "aria-label": t("close") }, renderIcon(icons?.X, { width: 15 }) || "×"),
+        el("button", { type: "button", className: "am-modal-close", onClick: () => !importing && setImportOpen(false), "aria-label": t("close"), disabled: importing }, renderIcon(icons?.X, { width: 15 }) || "×"),
       ),
       el(
         "div",
@@ -31,21 +31,22 @@ export function renderImportModal(ctx: any) {
         el(
           "div",
           { className: "flex gap-2" },
-          Button ? el(Button, { variant: isOpenApi ? "default" : "outline", onClick: () => setImportFormat("openapi"), className: "h-8" }, t("import_format_openapi")) : null,
-          Button ? el(Button, { variant: importFormat === "postman" ? "default" : "outline", onClick: () => setImportFormat("postman"), className: "h-8" }, t("import_format_postman")) : null,
+          Button ? el(Button, { variant: isOpenApi ? "default" : "outline", onClick: () => setImportFormat("openapi"), className: "h-8", disabled: importing }, t("import_format_openapi")) : null,
+          Button ? el(Button, { variant: importFormat === "postman" ? "default" : "outline", onClick: () => setImportFormat("postman"), className: "h-8", disabled: importing }, t("import_format_postman")) : null,
         ),
         // URL / paste mode toggle (both formats support URL and paste)
         el(
           "div",
           { className: "flex gap-2" },
-          Button ? el(Button, { variant: importMode === "url" ? "default" : "outline", onClick: () => setImportMode("url"), className: "h-8" }, t("import_swagger_url")) : null,
-          Button ? el(Button, { variant: importMode === "paste" ? "default" : "outline", onClick: () => setImportMode("paste"), className: "h-8" }, t("import_swagger_paste")) : null,
+          Button ? el(Button, { variant: importMode === "url" ? "default" : "outline", onClick: () => setImportMode("url"), className: "h-8", disabled: importing }, t("import_swagger_url")) : null,
+          Button ? el(Button, { variant: importMode === "paste" ? "default" : "outline", onClick: () => setImportMode("paste"), className: "h-8", disabled: importing }, t("import_swagger_paste")) : null,
         ),
         // Input area
         importMode === "url"
           ? el("input", {
               value: importUrl,
               onChange: (e: any) => setImportUrl(e.target.value),
+              disabled: importing,
               placeholder: isOpenApi ? "https://example.com/openapi.json" : "https://example.com/collection.json",
               className: "am-field text-ui",
             })
@@ -53,8 +54,8 @@ export function renderImportModal(ctx: any) {
               "div",
               { style: { height: 200, flexShrink: 0, overflow: "hidden" } },
               Editor
-                ? el(Editor, { value: importText, onChange: setImportText, language: "json", height: "200px" })
-                : el("textarea", { value: importText, onChange: (e: any) => setImportText(e.target.value), className: "am-field text-ui h-full py-2.5" }),
+                ? el(Editor, { value: importText, onChange: importing ? undefined : setImportText, language: "json", height: "200px", options: { readOnly: importing } })
+                : el("textarea", { value: importText, onChange: (e: any) => setImportText(e.target.value), disabled: importing, className: "am-field text-ui h-full py-2.5" }),
             ),
       ),
       // Target collection — outside scrollable body so dropdown isn't clipped
@@ -70,6 +71,7 @@ export function renderImportModal(ctx: any) {
                 onChange: (value: string) => setImportTargetCollectionId(value),
                 className: "text-ui",
                 containerClassName: "w-full",
+                disabled: importing,
               },
               el("option", { value: "" }, t("import_select_collection")),
               ...collections.map((c: any) => el("option", { key: c.id, value: c.id }, c.name)),
@@ -79,6 +81,7 @@ export function renderImportModal(ctx: any) {
               {
                 value: importTargetCollectionId,
                 onChange: (e: any) => setImportTargetCollectionId(e.target.value),
+                disabled: importing,
                 className: "am-field text-ui",
               },
               el("option", { value: "" }, t("import_select_collection")),
@@ -88,8 +91,8 @@ export function renderImportModal(ctx: any) {
       el(
         "div",
         { className: "am-modal-footer" },
-        Button ? el(Button, { variant: "outline", onClick: () => setImportOpen(false) }, t("cancel")) : null,
-        Button ? el(Button, { onClick: importCollection }, t("import_apis")) : null,
+        Button ? el(Button, { variant: "outline", onClick: () => { if (!importing) setImportOpen(false); }, disabled: importing }, t("cancel")) : null,
+        Button ? el(Button, { onClick: importCollection, disabled: importing }, importing ? t("importing") : t("import_apis")) : null,
       ),
     ),
   );
@@ -462,7 +465,11 @@ export function renderEnvModal(ctx: any) {
                   setEnvironments(normalizedEnvs);
                   setGlobalVariables(globalDraft || {});
                   if (!normalizedEnvs.some((x: any) => x.id === activeEnvId)) {
-                    setActiveEnvId(normalizedEnvs[0]?.id || "none");
+                    const fallbackEnvId =
+                      envEditingId && normalizedEnvs.some((x: any) => x.id === envEditingId)
+                        ? envEditingId
+                        : normalizedEnvs[0]?.id || "none";
+                    setActiveEnvId(fallbackEnvId);
                   }
                   setEnvOpen(false);
                 },
@@ -709,6 +716,99 @@ export function renderMoveRequestModal(ctx: any) {
         Button
           ? el(Button, { variant: "outline", onClick: () => setMoveRequestOpen(false) }, t("cancel"))
           : null,
+      ),
+    ),
+  );
+}
+
+export function renderDeleteEntityModal(ctx: any) {
+  const { el, t, Button, icons, state, actions } = ctx;
+  const { deleteEntityState } = state;
+  const { setDeleteEntityState, confirmDeleteEntity } = actions;
+  const renderIcon = (IconComp: any, props: Record<string, unknown>) => (IconComp ? el(IconComp, props) : null);
+  if (!deleteEntityState?.open) return null;
+
+  return el(
+    "div",
+    { className: "am-modal-overlay" },
+    el("div", { className: "am-modal-backdrop", onClick: () => setDeleteEntityState({ open: false, kind: null, id: null }) }),
+    el(
+      "div",
+      { className: "am-modal-shell am-modal-shell--sm" },
+      el(
+        "div",
+        { className: "am-modal-header" },
+        el("h3", null, t(`delete_${deleteEntityState.kind}_title`)),
+        el(
+          "button",
+          { type: "button", className: "am-modal-close", onClick: () => setDeleteEntityState({ open: false, kind: null, id: null }), "aria-label": t("cancel") },
+          renderIcon(icons?.X, { width: 15 }) || "×",
+        ),
+      ),
+      el(
+        "div",
+        { className: "am-modal-body" },
+        el("p", { className: "am-modal-confirm-copy" }, t(`delete_${deleteEntityState.kind}_confirm`)),
+      ),
+      el(
+        "div",
+        { className: "am-modal-footer" },
+        Button ? el(Button, { variant: "outline", onClick: () => setDeleteEntityState({ open: false, kind: null, id: null }) }, t("cancel")) : null,
+        Button ? el(Button, { onClick: confirmDeleteEntity, className: "am-modal-danger-btn" }, t("delete")) : null,
+      ),
+    ),
+  );
+}
+
+export function renderTempVariableModal(ctx: any) {
+  const { el, t, Button, Input, icons, state, actions } = ctx;
+  const { tempVariableOpen, tempVariableDraft } = state;
+  const { setTempVariableOpen, setTempVariableDraft, saveTempVariable } = actions;
+  const renderIcon = (IconComp: any, props: Record<string, unknown>) => (IconComp ? el(IconComp, props) : null);
+  if (!tempVariableOpen) return null;
+
+  const canSave = String(tempVariableDraft?.key || "").trim().length > 0;
+
+  return el(
+    "div",
+    { className: "am-modal-overlay" },
+    el("div", { className: "am-modal-backdrop", onClick: () => setTempVariableOpen(false) }),
+    el(
+      "div",
+      { className: "am-modal-shell am-modal-shell--sm" },
+      el(
+        "div",
+        { className: "am-modal-header" },
+        el("h3", null, t("temp_variable_title")),
+        el(
+          "button",
+          { type: "button", className: "am-modal-close", onClick: () => setTempVariableOpen(false), "aria-label": t("cancel") },
+          renderIcon(icons?.X, { width: 15 }) || "×",
+        ),
+      ),
+      el(
+        "div",
+        { className: "am-modal-body space-y-3" },
+        Input
+          ? el(Input, {
+              value: tempVariableDraft?.key || "",
+              placeholder: t("key"),
+              onChange: (e: any) => setTempVariableDraft((prev: any) => ({ ...prev, key: e.target.value })),
+            })
+          : null,
+        Input
+          ? el(Input, {
+              value: tempVariableDraft?.value || "",
+              placeholder: t("value"),
+              onChange: (e: any) => setTempVariableDraft((prev: any) => ({ ...prev, value: e.target.value })),
+            })
+          : null,
+      ),
+      el(
+        "div",
+        { className: "am-modal-footer" },
+        Button ? el(Button, { variant: "outline", onClick: () => setTempVariableOpen(false) }, t("cancel")) : null,
+        Button ? el(Button, { onClick: saveTempVariable, disabled: !canSave }, t("save")) : null,
       ),
     ),
   );

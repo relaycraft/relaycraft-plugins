@@ -1,3 +1,5 @@
+import type { ApiRequest, AuthConfig, UnresolvedVariableSection, UnresolvedVariableSummary } from "./types";
+
 export const generateId = () =>
   (globalThis.crypto?.randomUUID?.() ??
     `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`);
@@ -26,6 +28,93 @@ export function resolveVariables(text: string, variables: Record<string, string>
     if (variables[key] !== undefined) return resolveBuiltins(variables[key]);
     return `{{${key}}}`;
   });
+}
+
+const VARIABLE_PATTERN = /\{\{(\$?\w+)\}\}/g;
+
+export function extractTemplateVariables(text: string) {
+  if (!text) return [];
+  const keys = new Set<string>();
+  String(text).replace(VARIABLE_PATTERN, (_, key) => {
+    keys.add(String(key));
+    return `{{${key}}}`;
+  });
+  return [...keys];
+}
+
+function collectMissingFromText(
+  text: string | null | undefined,
+  variables: Record<string, string>,
+  section: UnresolvedVariableSection,
+  target: Map<string, Set<UnresolvedVariableSection>>,
+) {
+  for (const key of extractTemplateVariables(String(text || ""))) {
+    if (BUILTIN_VARIABLES[key]) continue;
+    if (variables[key] !== undefined) continue;
+    if (!target.has(key)) target.set(key, new Set());
+    target.get(key)?.add(section);
+  }
+}
+
+function collectMissingFromAuth(
+  auth: AuthConfig | undefined,
+  variables: Record<string, string>,
+  target: Map<string, Set<UnresolvedVariableSection>>,
+) {
+  if (!auth || !auth.type || auth.type === "none") return;
+  collectMissingFromText(auth.bearer, variables, "auth", target);
+  collectMissingFromText(auth.basicUser, variables, "auth", target);
+  collectMissingFromText(auth.basicPass, variables, "auth", target);
+  collectMissingFromText(auth.apikeyKey, variables, "auth", target);
+  collectMissingFromText(auth.apikeyValue, variables, "auth", target);
+}
+
+export function collectUnresolvedVariables(request: ApiRequest | null, variables: Record<string, string>): UnresolvedVariableSummary {
+  const missingByKey = new Map<string, Set<UnresolvedVariableSection>>();
+  if (!request) {
+    return {
+      hasMissing: false,
+      missingKeys: [],
+      items: [],
+      sectionCounts: { url: 0, params: 0, headers: 0, auth: 0, body: 0 },
+      sections: { url: [], params: [], headers: [], auth: [], body: [] },
+    };
+  }
+
+  collectMissingFromText(request.url, variables, "url", missingByKey);
+  for (const param of request.params || []) {
+    if (param.enabled === false) continue;
+    collectMissingFromText(param.key, variables, "params", missingByKey);
+    collectMissingFromText(param.value, variables, "params", missingByKey);
+  }
+  for (const header of request.headers || []) {
+    if (header.enabled === false) continue;
+    collectMissingFromText(header.key, variables, "headers", missingByKey);
+    collectMissingFromText(header.value, variables, "headers", missingByKey);
+  }
+  collectMissingFromAuth(request.auth, variables, missingByKey);
+  collectMissingFromText(request.body, variables, "body", missingByKey);
+
+  const sectionCounts: Record<UnresolvedVariableSection, number> = { url: 0, params: 0, headers: 0, auth: 0, body: 0 };
+  const sections: Record<UnresolvedVariableSection, string[]> = { url: [], params: [], headers: [], auth: [], body: [] };
+  const items = [...missingByKey.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, sectionSet]) => {
+      const normalizedSections = [...sectionSet].sort() as UnresolvedVariableSection[];
+      for (const section of normalizedSections) {
+        sectionCounts[section] += 1;
+        sections[section].push(key);
+      }
+      return { key, sections: normalizedSections };
+    });
+
+  return {
+    hasMissing: items.length > 0,
+    missingKeys: items.map((item) => item.key),
+    items,
+    sectionCounts,
+    sections,
+  };
 }
 
 export type FormBodyItem = { key: string; value: string; enabled: boolean };

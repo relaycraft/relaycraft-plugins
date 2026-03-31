@@ -3,11 +3,11 @@ import "./plugin.css";
 import { parseOpenApi } from "./services/openapi";
 import { ApiManagerStorage } from "./services/storage";
 import { createActionHub } from "./actionHub";
-import type { ApiCollection, ApiRequest, CollectionMeta, Environment } from "./types";
+import type { ApiCollection, ApiRequest, CollectionMeta, Environment, UnresolvedVariableSummary } from "./types";
 import { createIcons } from "./ui/icons";
 import { renderRequestEditor, renderResponsePanel, renderSidebar } from "./ui/panels";
-import { renderEnvModal, renderFlowModal, renderImportModal, renderMockModal, renderMoveRequestModal, renderRunnerModal } from "./ui/modals";
-import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables } from "./utils";
+import { renderDeleteEntityModal, renderEnvModal, renderFlowModal, renderImportModal, renderMockModal, renderMoveRequestModal, renderRunnerModal, renderTempVariableModal } from "./ui/modals";
+import { collectUnresolvedVariables, extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables } from "./utils";
 
 (() => {
   type ReactLike = {
@@ -120,8 +120,13 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
     const [globalDraft, setGlobalDraft] = useState<Record<string, string>>({});
     const [globalDraftRows, setGlobalDraftRows] = useState<DraftPair[]>([]);
     const [envEditingId, setEnvEditingId] = useState<string | null>(null);
+    const [pendingEnvSeedKeys, setPendingEnvSeedKeys] = useState<string[]>([]);
+    const [requestTempVariables, setRequestTempVariables] = useState<Record<string, Record<string, string>>>({});
+    const [tempVariableOpen, setTempVariableOpen] = useState(false);
+    const [tempVariableDraft, setTempVariableDraft] = useState({ key: "", value: "" });
 
     const [importOpen, setImportOpen] = useState(false);
+    const [importing, setImporting] = useState(false);
     const [importFormat, setImportFormat] = useState<"openapi" | "postman">("openapi");
     const [importMode, setImportMode] = useState<"url" | "paste">("url");
     const [importUrl, setImportUrl] = useState("");
@@ -143,6 +148,11 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
     const [moveRequestOpen, setMoveRequestOpen] = useState(false);
     const [moveRequestId, setMoveRequestId] = useState<string | null>(null);
     const [moveRequestTargetId, setMoveRequestTargetId] = useState("");
+    const [deleteEntityState, setDeleteEntityState] = useState<{ open: boolean; kind: "collection" | "folder" | "request" | null; id: string | null }>({
+      open: false,
+      kind: null,
+      id: null,
+    });
     const [mockOpen, setMockOpen] = useState(false);
     const [mockDraft, setMockDraft] = useState<any>(null);
     const [urlDraft, setUrlDraft] = useState("");
@@ -238,11 +248,49 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
         variables: { ...(x.variables || {}) },
         variableRows: Object.entries(x.variables || {}) as DraftPair[],
       }));
-      setEnvDraft(cloned);
+      let nextDraft = cloned;
+      let nextEditingId = cloned[0]?.id || null;
+      if (pendingEnvSeedKeys.length > 0) {
+        const resolvedTargetId =
+          activeEnvId !== "none" && cloned.some((env: Environment) => env.id === activeEnvId)
+            ? activeEnvId
+            : null;
+        if (resolvedTargetId) {
+          nextDraft = cloned.map((env: EnvDraftItem) => {
+            if (env.id !== resolvedTargetId) return env;
+            const variableRows = [...(env.variableRows || [])];
+            const existingKeys = new Set(variableRows.map(([key]) => (key || "").trim()).filter(Boolean));
+            for (const key of pendingEnvSeedKeys) {
+              if (!existingKeys.has(key)) variableRows.push([key, ""]);
+            }
+            return {
+              ...env,
+              variableRows,
+              variables: Object.fromEntries(
+                variableRows
+                  .filter(([key]) => (key || "").trim())
+                  .map(([key, value]) => [key.trim(), value || ""]),
+              ),
+            };
+          });
+          nextEditingId = resolvedTargetId;
+        } else {
+          const createdEnv: EnvDraftItem = {
+            id: generateId(),
+            name: t("missing_variables_env_name"),
+            variables: Object.fromEntries(pendingEnvSeedKeys.map((key) => [key, ""])),
+            variableRows: pendingEnvSeedKeys.map((key) => [key, ""]),
+          };
+          nextDraft = [...cloned, createdEnv];
+          nextEditingId = createdEnv.id;
+        }
+      }
+      setEnvDraft(nextDraft);
       setGlobalDraft({ ...(globalVariables || {}) });
       setGlobalDraftRows(Object.entries(globalVariables || {}) as DraftPair[]);
-      setEnvEditingId(cloned[0]?.id || null);
-    }, [envOpen, environments, globalVariables]);
+      setEnvEditingId(nextEditingId);
+      if (pendingEnvSeedKeys.length > 0) setPendingEnvSeedKeys([]);
+    }, [envOpen, environments, globalVariables, activeEnvId, pendingEnvSeedKeys, t]);
 
     useEffect(() => {
       setUrlDraft(activeRequest?.url || "");
@@ -308,8 +356,20 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
 
     const activeVariables = useMemo(() => {
       const env = environments.find((x: Environment) => x.id === activeEnvId);
-      return { ...(globalVariables || {}), ...(env?.variables || {}) };
-    }, [activeEnvId, environments, globalVariables]);
+      const requestScopedTempVars =
+        activeRequest?.id && requestTempVariables[activeRequest.id]
+          ? requestTempVariables[activeRequest.id]
+          : {};
+      return { ...(globalVariables || {}), ...(env?.variables || {}), ...requestScopedTempVars };
+    }, [activeEnvId, environments, globalVariables, activeRequest?.id, requestTempVariables]);
+    const unresolvedVariables = useMemo<UnresolvedVariableSummary>(
+      () => collectUnresolvedVariables(activeRequest, activeVariables),
+      [activeRequest, activeVariables],
+    );
+    const currentTempVariableEntries = useMemo(
+      () => Object.entries((activeRequest?.id && requestTempVariables[activeRequest.id]) || {}),
+      [activeRequest?.id, requestTempVariables],
+    );
 
     const actionHub = createActionHub({
       storage,
@@ -351,6 +411,7 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
         setSending,
         setEnvironments,
         setImportOpen,
+        setImporting,
         setImportTargetCollectionId,
         setFlowSaveOpen,
         setPendingFlow,
@@ -403,6 +464,58 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
       }
       void commitRename();
     };
+    const fillMissingVariables = () => {
+      const keys = unresolvedVariables.missingKeys || [];
+      if (keys.length === 0) return;
+      setPendingEnvSeedKeys(keys);
+      setEnvOpen(true);
+    };
+    const openTempVariableModal = () => {
+      const suggestedKey =
+        unresolvedVariables.missingKeys.length === 1 ? unresolvedVariables.missingKeys[0] : "";
+      setTempVariableDraft({ key: suggestedKey, value: "" });
+      setTempVariableOpen(true);
+    };
+    const saveTempVariable = () => {
+      if (!activeRequest?.id) return;
+      const key = String(tempVariableDraft.key || "").trim();
+      if (!key) return;
+      setRequestTempVariables((prev) => ({
+        ...prev,
+        [activeRequest.id]: {
+          ...(prev[activeRequest.id] || {}),
+          [key]: String(tempVariableDraft.value || ""),
+        },
+      }));
+      setTempVariableOpen(false);
+      setTempVariableDraft({ key: "", value: "" });
+    };
+    const removeTempVariable = (key: string) => {
+      if (!activeRequest?.id) return;
+      setRequestTempVariables((prev) => {
+        const current = { ...(prev[activeRequest.id] || {}) };
+        delete current[key];
+        if (Object.keys(current).length === 0) {
+          const next = { ...prev };
+          delete next[activeRequest.id];
+          return next;
+        }
+        return {
+          ...prev,
+          [activeRequest.id]: current,
+        };
+      });
+    };
+    const openDeleteConfirm = (kind: "collection" | "folder" | "request", id: string) => {
+      setDeleteEntityState({ open: true, kind, id });
+    };
+    const confirmDeleteEntity = async () => {
+      if (!deleteEntityState.id || !deleteEntityState.kind) return;
+      if (deleteEntityState.kind === "collection") await actionHub.deleteCollection(deleteEntityState.id);
+      if (deleteEntityState.kind === "folder") await actionHub.deleteFolder(deleteEntityState.id);
+      if (deleteEntityState.kind === "request") await actionHub.deleteRequest(deleteEntityState.id);
+      setDeleteEntityState({ open: false, kind: null, id: null });
+    };
 
     return el(
       "div",
@@ -447,8 +560,8 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
             }
             setActiveRequest(r);
           },
-          deleteCollection: actionHub.deleteCollection,
-          deleteRequest: actionHub.deleteRequest,
+          deleteCollection: (id: string) => openDeleteConfirm("collection", id),
+          deleteRequest: (id: string) => openDeleteConfirm("request", id),
           addRequest: actionHub.addRequest,
           openRunner: actionHub.openRunner,
           toggleDefaultCollection: actionHub.toggleDefaultCollection,
@@ -465,7 +578,7 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
               setRenameDraft(folder.name);
             }
           },
-          deleteFolder: actionHub.deleteFolder,
+          deleteFolder: (id: string) => openDeleteConfirm("folder", id),
           addRequestToFolder: actionHub.addRequestToFolder,
           toggleFolder: (folderId: string) => {
             setOpenedFolderIds((prev: string[]) => prev.includes(folderId) ? prev.filter((x: string) => x !== folderId) : [...prev, folderId]);
@@ -493,7 +606,7 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
           Editor,
           Tooltip,
           icons,
-          state: { activeRequest, sending, collections, activeCollection, proxyActive, urlDraft },
+          state: { activeRequest, sending, collections, activeCollection, proxyActive, urlDraft, unresolvedVariables, currentTempVariableEntries },
           actions: {
             updateRequest: actionHub.updateRequest,
             setUrlDraft,
@@ -505,6 +618,9 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
               await actionHub.sendRequest();
             },
             copyAsCurl: actionHub.copyAsCurl,
+            fillMissingVariables,
+            openTempVariableModal,
+            removeTempVariable,
             cloneActiveRequest: async () => {
               const cloned = await actionHub.cloneActiveRequest();
               if (cloned?.id) setRecentClonedRequestId(cloned.id);
@@ -545,9 +661,10 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
         Select,
         Editor,
         icons,
-        state: { importOpen, importFormat, importMode, importUrl, importText, importTargetCollectionId, collections },
+        state: { importOpen, importing, importFormat, importMode, importUrl, importText, importTargetCollectionId, collections },
         actions: {
           setImportOpen,
+          setImporting,
           setImportFormat,
           setImportMode,
           setImportUrl,
@@ -604,6 +721,30 @@ import { extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables 
           setMoveRequestOpen,
           setMoveRequestTargetId,
           moveRequestToCollection: actionHub.moveRequestToCollection,
+        },
+      }),
+      renderDeleteEntityModal({
+        el,
+        t,
+        Button,
+        icons,
+        state: { deleteEntityState },
+        actions: {
+          setDeleteEntityState,
+          confirmDeleteEntity,
+        },
+      }),
+      renderTempVariableModal({
+        el,
+        t,
+        Button,
+        Input,
+        icons,
+        state: { tempVariableOpen, tempVariableDraft },
+        actions: {
+          setTempVariableOpen,
+          setTempVariableDraft,
+          saveTempVariable,
         },
       }),
       renderMockModal({

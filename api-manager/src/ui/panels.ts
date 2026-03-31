@@ -7,6 +7,7 @@ let _drag: { type: string; id: string } | null = null;
 let _dragOverTarget: { type: string; id: string } | null = null;
 let _pointerDragging = false;
 let _pointerCandidate: { type: string; id: string; startX: number; startY: number } | null = null;
+let _suppressClickUntil = 0;
 
 export function renderSidebar(ctx: any) {
   const { el, t, Button, Input, Select, Tooltip, icons, state, actions } = ctx;
@@ -49,6 +50,7 @@ export function renderSidebar(ctx: any) {
   } = actions;
 
   const DRAG_ACTIVATE_DISTANCE = 6;
+  const shouldSuppressClick = () => Date.now() < _suppressClickUntil;
   const preventSelection = () => { document.body.style.userSelect = "none"; };
   const restoreSelection = () => { document.body.style.userSelect = ""; };
   const updateDragVisual = (next: { dragType: string; dragId: string; targetType: string; targetId: string } | null) => {
@@ -98,7 +100,10 @@ export function renderSidebar(ctx: any) {
     updateDragVisual({ dragType: _drag.type, dragId: _drag.id, targetType: type, targetId: id });
   };
   const handlePointerUp = () => {
-    if (_pointerDragging) finalizePointerReorder();
+    if (_pointerDragging) {
+      finalizePointerReorder();
+      _suppressClickUntil = Date.now() + 250;
+    }
     window.removeEventListener("pointermove", handlePointerMove);
     clearPointerDrag();
   };
@@ -208,7 +213,10 @@ export function renderSidebar(ctx: any) {
                       if (_drag?.type === "collection" && _drag.id !== c.id) reorderCollections(_drag.id, c.id);
                       _drag = null;
                     },
-                    onClick: () => selectCollection(c.id),
+                    onClick: () => {
+                      if (shouldSuppressClick()) return;
+                      selectCollection(c.id);
+                    },
                     onMouseEnter: () => setHoveredCollectionId(c.id),
                     onMouseLeave: () => setHoveredCollectionId((prev: string) => (prev === c.id ? "" : prev)),
                     style: {
@@ -330,7 +338,10 @@ export function renderSidebar(ctx: any) {
                             if (_drag?.type === "request" && _drag.id !== r.id) reorderRequests(_drag.id, r.id);
                             _drag = null;
                           },
-                          onClick: () => setActiveRequest(r),
+                          onClick: () => {
+                            if (shouldSuppressClick()) return;
+                            setActiveRequest(r);
+                          },
                           onMouseEnter: () => setHoveredRequestId(r.id),
                           onMouseLeave: () => setHoveredRequestId((prev: string) => (prev === r.id ? "" : prev)),
                           style: {
@@ -367,6 +378,7 @@ export function renderSidebar(ctx: any) {
                       ...folders.map((folder: any) => {
                         const isOpen = (openedFolderIds || []).includes(folder.id);
                         const folderRequests = (folder.requests || []).filter(filterRequest);
+                        const folderRequestCount = q ? folderRequests.length : (folder.requests || []).length;
                         const isRenamingFolder = renameTarget?.kind === "folder" && renameTarget.id === folder.id;
                         const isDraggingSource = dragVisual?.dragType === "folder" && dragVisual.dragId === folder.id;
                         const isDropTarget = dragVisual?.targetType === "folder" && dragVisual.targetId === folder.id && !isDraggingSource;
@@ -390,7 +402,10 @@ export function renderSidebar(ctx: any) {
                                 _drag = null;
                                 _dragOverTarget = null;
                               },
-                              onClick: () => toggleFolder(folder.id),
+                              onClick: () => {
+                                if (shouldSuppressClick()) return;
+                                toggleFolder(folder.id);
+                              },
                               style: {
                                 color: isOpen ? "var(--color-foreground)" : "var(--color-muted-foreground)",
                                 background: "color-mix(in srgb, var(--color-muted) 35%, transparent)",
@@ -404,7 +419,7 @@ export function renderSidebar(ctx: any) {
                             isRenamingFolder && Input
                               ? el(Input, { autoFocus: true, className: "h-6 text-ui flex-1 min-w-0", value: renameDraft, onChange: (e: any) => setRenameDraft(e.target.value), onBlur: onRenameBlur, onKeyDown: onRenameKeyDown, onClick: stopRowMouse, onMouseDown: stopRowMouse })
                               : el("span", { className: "truncate flex-1 font-medium text-ui", title: t("double_click_rename"), onDoubleClick: (e: any) => { e.stopPropagation(); startRenameFolder(folder.id, folder.name); } }, folder.name),
-                            el("span", { className: "shrink-0 text-xs tabular-nums", style: { opacity: 0.4 } }, `${(folder.requests || []).length}`),
+                            el("span", { className: "shrink-0 text-xs tabular-nums", style: { opacity: 0.4 } }, `${folderRequestCount}`),
                             tip(t("new_request"), el("button", { type: "button", onClick: (e: any) => { e.stopPropagation(); addRequestToFolder(folder.id); if (!isOpen) toggleFolder(folder.id); }, className: "inline-flex h-5 w-5 items-center justify-center rounded border border-transparent bg-transparent text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary", "aria-label": t("new_request") }, renderIcon(icons.Plus, { width: 10 }))),
                             tip(t("delete"), el("button", { type: "button", onClick: (e: any) => { e.stopPropagation(); deleteFolder(folder.id); }, className: "inline-flex h-5 w-5 items-center justify-center rounded border border-transparent bg-transparent text-muted-foreground transition-colors hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive", "aria-label": t("delete") }, renderIcon(icons.Trash, { width: 10 }))),
                           ),
@@ -440,8 +455,8 @@ export function renderRequestEditor(ctx: any) {
     child: any,
     options?: { side?: "top" | "bottom" | "left" | "right"; className?: string; multiline?: boolean },
   ) => (Tooltip ? el(Tooltip, { content, ...options }, child) : child);
-  const { activeRequest, sending, collections, activeCollection, proxyActive, urlDraft } = state;
-  const { updateRequest, setUrlDraft, sendRequest, cloneActiveRequest, copyAsCurl } = actions;
+  const { activeRequest, sending, collections, activeCollection, proxyActive, urlDraft, unresolvedVariables, currentTempVariableEntries } = state;
+  const { updateRequest, setUrlDraft, sendRequest, cloneActiveRequest, copyAsCurl, fillMissingVariables, openTempVariableModal, removeTempVariable } = actions;
   if (!activeRequest) {
     if (!Array.isArray(collections) || collections.length === 0) {
       return el(
@@ -493,6 +508,10 @@ export function renderRequestEditor(ctx: any) {
   const activeBodyType = normalizeRequestBodyType(activeRequest.bodyType);
   const requestParams: ParamItem[] = activeRequest.params || [];
   const requestAuth: AuthConfig = activeRequest.auth || { type: "none" };
+  const unresolvedPreview = (unresolvedVariables?.missingKeys || []).slice(0, 3).join(", ");
+  const unresolvedOverflow = Math.max((unresolvedVariables?.missingKeys || []).length - 3, 0);
+  const withCount = (label: string, count: number) => count > 0 ? `${label} (${count})` : label;
+  const hasOnlyTempVariables = !unresolvedVariables?.hasMissing && (currentTempVariableEntries || []).length > 0;
   const closeRequestMenu = (event?: any) => {
     const details = event?.currentTarget?.closest?.("details");
     if (details?.removeAttribute) details.removeAttribute("open");
@@ -662,6 +681,87 @@ export function renderRequestEditor(ctx: any) {
           : null,
       ),
     ),
+    (unresolvedVariables?.hasMissing || (currentTempVariableEntries || []).length > 0)
+      ? el(
+          "div",
+          { className: `am-warning-bar${hasOnlyTempVariables ? " am-warning-bar--info" : ""}` },
+          el(
+            "div",
+            { className: `am-warning-bar__icon${hasOnlyTempVariables ? " am-warning-bar__icon--info" : ""}` },
+            renderIcon(hasOnlyTempVariables ? (icons.Info || icons.CircleAlert || icons.AlertCircle) : (icons.AlertTriangle || icons.AlertCircle), { width: 14, height: 14 }) || "!",
+          ),
+          el(
+            "div",
+            { className: "min-w-0 flex-1 space-y-1" },
+            el(
+              "div",
+              { className: "am-warning-bar__title" },
+              unresolvedVariables?.hasMissing
+                ? t("unresolved_variables_summary", { count: unresolvedVariables.missingKeys.length })
+                : t("temp_variables_summary"),
+            ),
+            el(
+              "div",
+              { className: "am-warning-bar__meta" },
+              unresolvedVariables?.hasMissing
+                ? `${unresolvedPreview}${unresolvedOverflow > 0 ? ` +${unresolvedOverflow}` : ""}`
+                : t("temp_variables_ready"),
+            ),
+            (currentTempVariableEntries || []).length > 0
+              ? el(
+                  "div",
+                  { className: "am-warning-bar__chips" },
+                  ...(currentTempVariableEntries || []).map(([key, value]: [string, string]) =>
+                    el(
+                      "span",
+                      { key, className: "am-warning-chip" },
+                      el("span", { className: "truncate max-w-[160px]" }, `${key}${value ? `=${value}` : ""}`),
+                      el(
+                        "button",
+                        {
+                          type: "button",
+                          className: "am-warning-chip__remove",
+                          onClick: () => removeTempVariable(key),
+                          "aria-label": t("delete"),
+                        },
+                        "×",
+                      ),
+                    ),
+                  ),
+                )
+              : null,
+          ),
+          el(
+            "div",
+            { className: "flex shrink-0 gap-2" },
+            Button
+              ? el(
+                  Button,
+                  {
+                    variant: "outline",
+                    size: "sm",
+                    className: "h-8 shrink-0",
+                    onClick: fillMissingVariables,
+                    disabled: !unresolvedVariables?.hasMissing,
+                  },
+                  t("environment_variables_action"),
+                )
+              : null,
+            Button
+              ? el(
+                  Button,
+                  {
+                    variant: "outline",
+                    size: "sm",
+                    className: "h-8 shrink-0",
+                    onClick: openTempVariableModal,
+                  },
+                  t("temp_variable_action"),
+                )
+              : null,
+          ),
+        )
+      : null,
     Tabs
       ? el(
           Tabs,
@@ -669,10 +769,10 @@ export function renderRequestEditor(ctx: any) {
           el(
             TabsList,
             { className: "h-8 w-fit" },
-            el(TabsTrigger, { value: "params", className: "h-7 px-3 text-ui" }, t("params")),
-            el(TabsTrigger, { value: "headers", className: "h-7 px-3 text-ui" }, t("headers")),
-            el(TabsTrigger, { value: "body", className: "h-7 px-3 text-ui" }, t("body")),
-            el(TabsTrigger, { value: "auth", className: "h-7 px-3 text-ui" }, t("auth")),
+            el(TabsTrigger, { value: "params", className: "h-7 px-3 text-ui" }, withCount(t("params"), unresolvedVariables?.sectionCounts?.params || 0)),
+            el(TabsTrigger, { value: "headers", className: "h-7 px-3 text-ui" }, withCount(t("headers"), unresolvedVariables?.sectionCounts?.headers || 0)),
+            el(TabsTrigger, { value: "body", className: "h-7 px-3 text-ui" }, withCount(t("body"), unresolvedVariables?.sectionCounts?.body || 0)),
+            el(TabsTrigger, { value: "auth", className: "h-7 px-3 text-ui" }, withCount(t("auth"), unresolvedVariables?.sectionCounts?.auth || 0)),
             el(TabsTrigger, { value: "extract", className: "h-7 px-3 text-ui" }, t("extract")),
           ),
           el(
@@ -832,7 +932,7 @@ export function renderRequestEditor(ctx: any) {
           ),
           el(
             TabsContent,
-            { value: "body", className: "min-h-[168px] space-y-2" },
+            { value: "body", className: "am-tabpanel--body min-h-[168px] space-y-2 overflow-hidden flex flex-col" },
             el(
               "div",
               { className: "flex items-center justify-end gap-2" },
@@ -948,12 +1048,16 @@ export function renderRequestEditor(ctx: any) {
                     ),
                   )
                 : Editor
-                  ? el(Editor, {
-                      value: activeRequest.body || "",
-                      onChange: (v: string) => updateRequest({ body: v, bodyType: "raw" }),
-                      language: "json",
-                      height: "180px",
-                    })
+                  ? el(
+                      "div",
+                      { className: "flex-1 min-h-0 overflow-hidden rounded-lg border border-border/40" },
+                      el(Editor, {
+                        value: activeRequest.body || "",
+                        onChange: (v: string) => updateRequest({ body: v, bodyType: "raw" }),
+                        language: "json",
+                        height: "100%",
+                      }),
+                    )
                   : Textarea
                     ? el(Textarea, {
                         value: activeRequest.body || "",

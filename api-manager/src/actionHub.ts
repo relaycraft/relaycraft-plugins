@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ApiCollection, ApiRequest, Environment, ImportedApiRequest, PostExtractRule, RunnerResult } from "./types";
-import { appendParamsToUrl, applyAuth, buildCurlCommand, extractRequestName, FORM_BODY_TYPE, normalizeRequestBodyType, parseFormBodyItems, resolveVariables as resolveVars, serializeFormBodyItems } from "./utils";
+import { appendParamsToUrl, applyAuth, buildCurlCommand, collectUnresolvedVariables, extractRequestName, FORM_BODY_TYPE, normalizeRequestBodyType, parseFormBodyItems, resolveVariables as resolveVars, serializeFormBodyItems } from "./utils";
 import { isPostmanCollection, parsePostmanCollection } from "./services/postman";
 
 type Deps = {
@@ -42,6 +42,7 @@ type Deps = {
     setSending: (v: boolean) => void;
     setEnvironments: (v: Environment[]) => void;
     setImportOpen: (v: boolean) => void;
+    setImporting: (v: boolean) => void;
     setImportTargetCollectionId: (v: string) => void;
     setFlowSaveOpen: (v: boolean) => void;
     setPendingFlow: (v: any) => void;
@@ -383,6 +384,18 @@ export function createActionHub(deps: Deps) {
   async function sendRequest() {
     const { activeRequest, activeVariables } = getState();
     if (!activeRequest) return;
+    const unresolved = collectUnresolvedVariables(activeRequest, activeVariables);
+    if (unresolved.hasMissing && globalThis.confirm) {
+      const preview = unresolved.missingKeys.slice(0, 5).join(", ");
+      const suffix = unresolved.missingKeys.length > 5 ? ` +${unresolved.missingKeys.length - 5}` : "";
+      const confirmed = globalThis.confirm(
+        t("unresolved_variables_confirm", {
+          count: unresolved.missingKeys.length,
+          keys: `${preview}${suffix}`,
+        }),
+      );
+      if (!confirmed) return;
+    }
     setState.setSending(true);
     const snapshot = {
       name: activeRequest.name,
@@ -611,6 +624,7 @@ export function createActionHub(deps: Deps) {
     if (!targetId) return api.ui.toast(t("import_select_collection"), "error");
     const target = await storage.getCollection(targetId);
     if (!target) return api.ui.toast(t("import_error"), "error");
+    setState.setImporting(true);
     try {
       let importedRequests: ImportedApiRequest[] = [];
 
@@ -671,6 +685,8 @@ export function createActionHub(deps: Deps) {
       api.ui.toast(t("import_success", { count: importedRequests.length }), "success");
     } catch (e: any) {
       api.ui.toast(`${t("import_error")}: ${e?.message || String(e)}`, "error");
+    } finally {
+      setState.setImporting(false);
     }
   }
 
