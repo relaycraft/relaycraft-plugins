@@ -106,6 +106,7 @@
   "import_format_postman": "Postman",
   "import_not_postman": "The content is not a valid Postman collection",
   "params": "Params",
+  "requests": "Requests",
   "add_param": "Add Param",
   "params_empty": "No params yet",
   "headers_empty": "No headers yet",

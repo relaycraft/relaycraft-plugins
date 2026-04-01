@@ -106,6 +106,7 @@
   "import_format_postman": "Postman",
   "import_not_postman": "当前内容不是 Postman 集合格式",
   "params": "参数",
+  "requests": "请求",
   "add_param": "添加参数",
   "params_empty": "暂无参数",
   "headers_empty": "暂无请求头",

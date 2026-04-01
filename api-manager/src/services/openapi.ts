@@ -409,9 +409,10 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
   }
 
   // Sort: by tag order (from spec tags array), then by path+method order (paths object is already ordered)
-  return requests.sort((a, b) => {
-    const tagDiff = a._tagOrder - b._tagOrder;
-    if (tagDiff !== 0) return tagDiff;
-    return 0; // within same tag, preserve paths object order
+  const sorted = requests.sort((a, b) => {
+    return a._tagOrder - b._tagOrder;
   });
+  // Clean up internal _tagOrder field
+  sorted.forEach((r) => delete (r as any)._tagOrder);
+  return sorted;
 }

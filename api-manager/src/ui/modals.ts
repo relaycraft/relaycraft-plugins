@@ -553,29 +553,31 @@ export function renderRunnerModal(ctx: any) {
             // Top-level requests
             ...(topRequests.length > 0
               ? [
-                  el(
-                    "div",
-                    { key: "top-header", className: "am-runner-folder-header" },
-                    el(
-                      "button",
-                      {
-                        type: "button",
-                        className: `am-kv-toggle am-runner-header-toggle ${topRequests.every((r: any) => runnerSelectedIds.includes(r.id)) ? "am-kv-toggle--on" : "am-kv-toggle--off"}`,
-                        disabled: runnerRunning,
-                        onClick: () => {
-                          const allSelected = topRequests.every((r: any) => runnerSelectedIds.includes(r.id));
-                          if (allSelected) {
-                            setRunnerSelectedIds(runnerSelectedIds.filter((id: string) => !topRequests.some((r: any) => r.id === id)));
-                          } else {
-                            const newIds = [...new Set([...runnerSelectedIds, ...topRequests.map((r: any) => r.id)])];
-                            setRunnerSelectedIds(newIds);
-                          }
+                  (() => {
+                    const allTopSelected = topRequests.every((r: any) => runnerSelectedIds.includes(r.id));
+                    return el(
+                      "div",
+                      { key: "top-header", className: "am-runner-folder-header" },
+                      el(
+                        "button",
+                        {
+                          type: "button",
+                          className: `am-kv-toggle am-runner-header-toggle ${allTopSelected ? "am-kv-toggle--on" : "am-kv-toggle--off"}`,
+                          disabled: runnerRunning,
+                          onClick: () => {
+                            if (allTopSelected) {
+                              setRunnerSelectedIds(runnerSelectedIds.filter((id: string) => !topRequests.some((r: any) => r.id === id)));
+                            } else {
+                              const newIds = [...new Set([...runnerSelectedIds, ...topRequests.map((r: any) => r.id)])];
+                              setRunnerSelectedIds(newIds);
+                            }
+                          },
                         },
-                      },
-                      renderIcon(topRequests.every((r: any) => runnerSelectedIds.includes(r.id)) ? icons.CheckCircle : icons.Circle, { width: 14, height: 14 }),
-                    ),
-                    el("span", { className: "text-ui text-muted-foreground font-medium" }, t("params")),
-                  ),
+                        renderIcon(allTopSelected ? icons.CheckCircle : icons.Circle, { width: 14, height: 14 }),
+                      ),
+                      el("span", { className: "text-ui text-muted-foreground font-medium" }, t("requests")),
+                    );
+                  })(),
                   ...topRequests.map((r: any) => {
                     const result = resultMap[r.id];
                     const state = result?.state || "pending";
