@@ -283,6 +283,9 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         const location = String(parameter?.in || "").trim();
         if (!name || !location) continue;
 
+        // Skip body parameters - handle separately below
+        if (location === "body") continue;
+
         // Determine if this parameter is required
         // OpenAPI 3.x: required is a boolean on the parameter itself
         // For path params, they are always required
@@ -324,7 +327,28 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         }
       }
 
-      const requestBody = dereference(spec, operation.requestBody);
+      // Handle body parameters (Swagger 2.0 style)
+      const bodyParams = allParameters.filter((p: any) => p?.in === "body");
+      let requestBody: any = null;
+      let isBodyRequired = false;
+      if (bodyParams.length > 0) {
+        const firstBodyParam = bodyParams[0];
+        isBodyRequired = firstBodyParam?.required === true;
+        // For body params, the schema is directly in the parameter
+        requestBody = {
+          content: {
+            "application/json": {
+              schema: firstBodyParam.schema,
+              example: firstBodyParam.example,
+              examples: firstBodyParam.examples,
+            },
+          },
+        };
+      } else {
+        // OpenAPI 3.x style requestBody
+        requestBody = dereference(spec, operation.requestBody);
+        isBodyRequired = requestBody?.required === true;
+      }
       const preferredMedia = pickPreferredMediaType(requestBody?.content);
       const reqBody = preferredMedia?.[1];
       const reqBodyMediaType = preferredMedia?.[0];
@@ -340,9 +364,6 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
           items: bodyExamples,
         };
       }
-
-      // Determine if request body is required
-      const isBodyRequired = requestBody?.required === true;
 
       const request: ApiRequest = {
         id: generateId(),
