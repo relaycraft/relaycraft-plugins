@@ -523,6 +523,16 @@ input.am-search-input {
   border-right: 1px solid color-mix(in srgb, var(--color-border) 20%, transparent);
   flex: 0 0 36%;
 }
+.am-required-marker {
+  position: relative;
+  z-index: 1;
+  margin-left: -10px;
+  margin-right: 4px;
+  color: var(--color-destructive);
+  font-weight: 700;
+  font-size: var(--text-tiny);
+  flex-shrink: 0;
+}
 .am-kv-delete {
   flex: 0 0 auto;
   display: inline-flex;

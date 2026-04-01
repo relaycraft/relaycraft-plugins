@@ -823,21 +823,16 @@ export function renderRequestEditor(ctx: any) {
                   el(
                     "div",
                     { className: `am-kv-input-group${p.enabled !== false ? "" : " am-kv-input-group--disabled"}` },
-                    el(
-                      "div",
-                      { className: "flex items-center gap-0.5" },
-                      el("input", {
-                        type: "text",
-                        value: p.key,
-                        placeholder: t("key"),
-                        className: p.required ? "pr-0" : "",
-                        onChange: (e: any) =>
-                          updateRequest({ params: requestParams.map((x: ParamItem, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
-                      }),
-                      p.required
-                        ? el("span", { className: "text-destructive font-bold text-xs", title: t("required") }, "*")
-                        : null,
-                    ),
+                    el("input", {
+                      type: "text",
+                      value: p.key,
+                      placeholder: t("key"),
+                      onChange: (e: any) =>
+                        updateRequest({ params: requestParams.map((x: ParamItem, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
+                    }),
+                    p.required
+                      ? el("span", { className: "am-required-marker", title: t("required") }, "*")
+                      : null,
                     el("input", {
                       type: "text",
                       value: p.value,
@@ -907,21 +902,16 @@ export function renderRequestEditor(ctx: any) {
                   el(
                     "div",
                     { className: `am-kv-input-group${h.enabled ? "" : " am-kv-input-group--disabled"}` },
-                    el(
-                      "div",
-                      { className: "flex items-center gap-0.5" },
-                      el("input", {
-                        type: "text",
-                        value: h.key,
-                        placeholder: t("key"),
-                        className: h.required ? "pr-0" : "",
-                        onChange: (e: any) =>
-                          updateRequest({ headers: activeRequest.headers.map((x: any, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
-                      }),
-                      h.required
-                        ? el("span", { className: "text-destructive font-bold text-xs", title: t("required") }, "*")
-                        : null,
-                    ),
+                    el("input", {
+                      type: "text",
+                      value: h.key,
+                      placeholder: t("key"),
+                      onChange: (e: any) =>
+                        updateRequest({ headers: activeRequest.headers.map((x: any, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
+                    }),
+                    h.required
+                      ? el("span", { className: "am-required-marker", title: t("required") }, "*")
+                      : null,
                     el("input", {
                       type: "text",
                       value: h.value,
