@@ -171,5 +171,6 @@
   "unresolved_section_params": "参数",
   "unresolved_section_headers": "请求头",
   "unresolved_section_auth": "鉴权",
-  "unresolved_section_body": "请求体"
+  "unresolved_section_body": "请求体",
+  "required": "必填"
 }

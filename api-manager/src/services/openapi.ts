@@ -37,6 +37,7 @@ function stringifyExampleValue(value: unknown) {
 }
 
 function buildSchemaSample(root: any, schemaLike: any, seen = new Set<string>()): unknown {
+  // Handle $ref - resolve it first
   const ref = schemaLike?.$ref;
   if (typeof ref === "string") {
     if (seen.has(ref)) return undefined;
@@ -45,22 +46,28 @@ function buildSchemaSample(root: any, schemaLike: any, seen = new Set<string>())
     return buildSchemaSample(root, resolved, new Set([...seen, ref]));
   }
 
-  const schema = dereference(root, schemaLike);
+  // No $ref, continue with normal processing
+  const schema = schemaLike;
   if (!schema || typeof schema !== "object") return undefined;
 
+  // Check for example/default at this level first
   if (schema.example !== undefined) return schema.example;
   if (schema.default !== undefined) return schema.default;
 
+  // Handle enum
   if (Array.isArray(schema.enum) && schema.enum.length > 0) {
     return schema.enum[0];
   }
 
+  // Handle oneOf/anyOf - take first option
   if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
     return buildSchemaSample(root, schema.oneOf[0], seen);
   }
   if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
     return buildSchemaSample(root, schema.anyOf[0], seen);
   }
+
+  // Handle allOf - merge all parts
   if (schema.allOf && Array.isArray(schema.allOf)) {
     const merged: Record<string, unknown> = {};
     let hasObjectShape = false;
@@ -74,33 +81,66 @@ function buildSchemaSample(root: any, schemaLike: any, seen = new Set<string>())
     if (hasObjectShape) return merged;
   }
 
+  // Determine schema type
   const schemaType = schema.type;
+
+  // Handle object type (including when only properties exist without explicit type)
   if (schemaType === "object" || schema.properties || schema.additionalProperties) {
     const result: Record<string, unknown> = {};
     let hasValue = false;
-    for (const [key, propertySchema] of Object.entries(schema.properties || {})) {
-      const sample = buildSchemaSample(root, propertySchema, seen);
-      if (sample !== undefined) {
-        result[key] = sample;
-        hasValue = true;
+
+    // Process each property
+    if (schema.properties) {
+      for (const [key, propertySchema] of Object.entries<any>(schema.properties)) {
+        const sample = buildSchemaSample(root, propertySchema, seen);
+        if (sample !== undefined) {
+          result[key] = sample;
+          hasValue = true;
+        } else {
+          // Even if sample is undefined, include the key with a sensible default based on property type
+          const propType = propertySchema?.type;
+          if (propType === "string") result[key] = "";
+          else if (propType === "integer" || propType === "number") result[key] = 0;
+          else if (propType === "boolean") result[key] = false;
+          else if (propType === "array") result[key] = [];
+          else if (propType === "object" || propertySchema?.properties) result[key] = {};
+          else result[key] = null;
+          hasValue = true;
+        }
       }
     }
-    if (!hasValue && schema.additionalProperties && typeof schema.additionalProperties === "object") {
-      const sample = buildSchemaSample(root, schema.additionalProperties, seen);
-      if (sample !== undefined) {
-        result.additionalProp1 = sample;
+
+    // Handle additionalProperties
+    if (!hasValue && schema.additionalProperties) {
+      if (typeof schema.additionalProperties === "boolean") {
+        result.additionalProp1 = "";
         hasValue = true;
+      } else if (typeof schema.additionalProperties === "object") {
+        const sample = buildSchemaSample(root, schema.additionalProperties, seen);
+        if (sample !== undefined) {
+          result.additionalProp1 = sample;
+          hasValue = true;
+        }
       }
     }
+
+    // If we have a schema with properties but no values were generated, return empty object
+    if (schema.properties && Object.keys(schema.properties).length > 0 && !hasValue) {
+      return result;
+    }
+
     return hasValue ? result : undefined;
   }
 
+  // Handle array type
   if (schemaType === "array" || schema.items) {
-    const itemSample = buildSchemaSample(root, schema.items, seen);
+    const itemSample = schema.items ? buildSchemaSample(root, schema.items, seen) : undefined;
     if (itemSample !== undefined) return [itemSample];
+    // Return empty array if we can't determine item type
     return [];
   }
 
+  // Handle scalar types
   if (schemaType === "integer" || schemaType === "number") return 0;
   if (schemaType === "boolean") return false;
   if (schemaType === "string") {
@@ -108,7 +148,18 @@ function buildSchemaSample(root: any, schemaLike: any, seen = new Set<string>())
     if (schema.format === "date") return "2026-01-01";
     if (schema.format === "email") return "user@example.com";
     if (schema.format === "uuid") return "00000000-0000-0000-0000-000000000000";
+    if (schema.format === "uri") return "https://example.com";
+    if (schema.format === "ipv4") return "127.0.0.1";
+    if (schema.format === "hostname") return "example.com";
+    if (schema.format === "password") return "********";
+    if (schema.format === "byte") return "dGVzdA==";
+    if (schema.format === "binary") return "binary data";
     return "";
+  }
+
+  // Fallback: if schema is an object but we couldn't determine the type
+  if (typeof schema === "object" && Object.keys(schema).length > 0) {
+    return undefined;
   }
 
   return undefined;
@@ -232,6 +283,11 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         const location = String(parameter?.in || "").trim();
         if (!name || !location) continue;
 
+        // Determine if this parameter is required
+        // OpenAPI 3.x: required is a boolean on the parameter itself
+        // For path params, they are always required
+        const isRequired = location === "path" || parameter?.required === true;
+
         const parameterExamples = collectExampleItems(spec, parameter, generateId);
         const selectedExample = parameterExamples[0];
         const selectedValue = selectedExample?.value ?? `{{${name}}}`;
@@ -239,11 +295,12 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         if (location === "path") {
           pathParams.push({
             name,
+            required: true,
             selectedExampleId: selectedExample?.id,
             ...(parameterExamples.length > 0 ? { examples: parameterExamples } : {}),
           });
         } else if (location === "query") {
-          params.push({ key: name, value: selectedValue, enabled: true });
+          params.push({ key: name, value: selectedValue, enabled: true, required: isRequired || undefined });
           if (parameterExamples.length > 0) {
             examples.params = {
               ...(examples.params || {}),
@@ -254,7 +311,7 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
             };
           }
         } else if (location === "header") {
-          headers.push({ key: name, value: selectedValue, enabled: true });
+          headers.push({ key: name, value: selectedValue, enabled: true, required: isRequired || undefined });
           if (parameterExamples.length > 0) {
             examples.headers = {
               ...(examples.headers || {}),
@@ -284,6 +341,9 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         };
       }
 
+      // Determine if request body is required
+      const isBodyRequired = requestBody?.required === true;
+
       const request: ApiRequest = {
         id: generateId(),
         name: operation.summary || `${method.toUpperCase()} ${path}`,
@@ -299,6 +359,7 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         ...(pathParams.length > 0 ? { pathParams } : {}),
         body,
         bodyType: body ? "raw" : "none",
+        bodyRequired: isBodyRequired || undefined,
         description: operation.description || "",
         ...(examples.body || examples.params || examples.headers ? { examples } : {}),
         createdAt: Date.now(),

@@ -490,8 +490,13 @@ export function renderRunnerModal(ctx: any) {
 
   if (!runnerOpen) return null;
 
-  const requests: any[] = runnerCollection?.requests || [];
-  const allIds = requests.map((r: any) => r.id);
+  const topRequests: any[] = runnerCollection?.requests || [];
+  const folders: any[] = runnerCollection?.folders || [];
+  const allRequests = [
+    ...topRequests,
+    ...folders.flatMap((f: any) => f.requests || []),
+  ];
+  const allIds = allRequests.map((r: any) => r.id);
   const abbrevMethod = (m: string) =>
     ({ DELETE: "DEL", OPTIONS: "OPT", CONNECT: "CON" } as Record<string, string>)[(m || "").toUpperCase()] || m;
 
@@ -540,12 +545,13 @@ export function renderRunnerModal(ctx: any) {
         ),
       ),
       // Request list
-      requests.length === 0
+      allRequests.length === 0
         ? el("div", { className: "am-modal-body text-muted-foreground" }, t("collection_empty"))
         : el(
             "div",
             { className: "am-runner-list" },
-            ...requests.map((r: any) => {
+            // Top-level requests
+            ...topRequests.map((r: any) => {
               const result = resultMap[r.id];
               const state = result?.state || "pending";
               const checked = runnerSelectedIds.includes(r.id);
@@ -593,6 +599,65 @@ export function renderRunnerModal(ctx: any) {
                 el("span", { className: "truncate flex-1 text-ui", title: r.name }, r.name),
                 el("span", { className: "am-runner-status" }, statusCell),
               );
+            }),
+            // Folders
+            ...folders.flatMap((folder: any) => {
+              const reqs = folder.requests || [];
+              const elements: any[] = [];
+              if (reqs.length > 0) {
+                elements.push(
+                  el(
+                    "div",
+                    { key: `folder-${folder.id}`, className: "am-runner-folder-header" },
+                    renderIcon(icons.Folder, { width: 12, className: "shrink-0 opacity-70" }),
+                    el("span", { className: "text-ui text-muted-foreground font-medium" }, folder.name),
+                  ),
+                );
+                elements.push(
+                  ...reqs.map((r: any) => {
+                    const result = resultMap[r.id];
+                    const state = result?.state || "pending";
+                    const checked = runnerSelectedIds.includes(r.id);
+
+                    let statusCell: any;
+                    if (!anyRun || state === "pending") {
+                      statusCell = el("span", { style: { color: "color-mix(in srgb, var(--color-muted-foreground) 40%, transparent)" } }, "─");
+                    } else if (state === "running") {
+                      statusCell = el("span", { className: "am-runner-spinner" });
+                    } else if (state === "done") {
+                      const color = statusColor(result.status);
+                      statusCell = el("span", { style: { color } }, `${result.status}  ${result.time}ms`);
+                    } else {
+                      statusCell = el("span", { style: { color: "var(--color-destructive)" }, title: result?.error || "" }, t("runner_result_error"));
+                    }
+
+                    return el(
+                      "div",
+                      { key: r.id, className: "am-runner-row am-runner-row--indented" },
+                      el(
+                        "button",
+                        {
+                          type: "button",
+                          className: `am-kv-toggle ${checked ? "am-kv-toggle--on" : "am-kv-toggle--off"}`,
+                          disabled: runnerRunning,
+                          onClick: () => {
+                            if (checked) {
+                              setRunnerSelectedIds(runnerSelectedIds.filter((x: string) => x !== r.id));
+                            } else {
+                              setRunnerSelectedIds([...runnerSelectedIds, r.id]);
+                            }
+                          },
+                        },
+                        renderIcon(checked ? icons.CheckCircle : icons.Circle, { width: 16, height: 16 }),
+                      ),
+                      el("span", { className: "am-method-badge am-method-badge--list am-method-badge--runner", "data-method": (r.method || "").toUpperCase() }, abbrevMethod(r.method)),
+                      el("span", { className: "truncate flex-1 text-ui", title: r.name }, r.name),
+                      el("span", { className: "am-runner-status" }, statusCell),
+                    );
+                  }),
+                );
+              }
+              return elements;
             }),
           ),
       // Footer

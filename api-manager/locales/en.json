@@ -171,5 +171,6 @@
   "unresolved_section_params": "Params",
   "unresolved_section_headers": "Headers",
   "unresolved_section_auth": "Auth",
-  "unresolved_section_body": "Body"
+  "unresolved_section_body": "Body",
+  "required": "Required"
 }

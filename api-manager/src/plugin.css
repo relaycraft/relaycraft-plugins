@@ -781,6 +781,21 @@ textarea.am-field { height: auto; }
 .am-runner-row:nth-child(odd) {
   background: color-mix(in srgb, var(--color-muted) 20%, transparent);
 }
+.am-runner-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 4px;
+  margin-top: 4px;
+}
+.am-runner-folder-header:first-child {
+  margin-top: 0;
+}
+.am-runner-row--indented {
+  padding-left: 28px;
+  border-left: 2px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  margin-left: 4px;
+}
 .am-runner-status {
   flex-shrink: 0;
   min-width: 112px;

@@ -823,13 +823,21 @@ export function renderRequestEditor(ctx: any) {
                   el(
                     "div",
                     { className: `am-kv-input-group${p.enabled !== false ? "" : " am-kv-input-group--disabled"}` },
-                    el("input", {
-                      type: "text",
-                      value: p.key,
-                      placeholder: t("key"),
-                      onChange: (e: any) =>
-                        updateRequest({ params: requestParams.map((x: ParamItem, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
-                    }),
+                    el(
+                      "div",
+                      { className: "flex items-center gap-0.5" },
+                      el("input", {
+                        type: "text",
+                        value: p.key,
+                        placeholder: t("key"),
+                        className: p.required ? "pr-0" : "",
+                        onChange: (e: any) =>
+                          updateRequest({ params: requestParams.map((x: ParamItem, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
+                      }),
+                      p.required
+                        ? el("span", { className: "text-destructive font-bold text-xs", title: t("required") }, "*")
+                        : null,
+                    ),
                     el("input", {
                       type: "text",
                       value: p.value,
@@ -899,13 +907,21 @@ export function renderRequestEditor(ctx: any) {
                   el(
                     "div",
                     { className: `am-kv-input-group${h.enabled ? "" : " am-kv-input-group--disabled"}` },
-                    el("input", {
-                      type: "text",
-                      value: h.key,
-                      placeholder: t("key"),
-                      onChange: (e: any) =>
-                        updateRequest({ headers: activeRequest.headers.map((x: any, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
-                    }),
+                    el(
+                      "div",
+                      { className: "flex items-center gap-0.5" },
+                      el("input", {
+                        type: "text",
+                        value: h.key,
+                        placeholder: t("key"),
+                        className: h.required ? "pr-0" : "",
+                        onChange: (e: any) =>
+                          updateRequest({ headers: activeRequest.headers.map((x: any, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
+                      }),
+                      h.required
+                        ? el("span", { className: "text-destructive font-bold text-xs", title: t("required") }, "*")
+                        : null,
+                    ),
                     el("input", {
                       type: "text",
                       value: h.value,
@@ -941,6 +957,13 @@ export function renderRequestEditor(ctx: any) {
             el(
               "div",
               { className: "flex items-center justify-end gap-2" },
+              activeRequest?.bodyRequired
+                ? el(
+                    "span",
+                    { className: "text-destructive font-bold text-xs px-1.5 py-0.5 rounded border border-destructive/30 bg-destructive/10", title: t("required") },
+                    t("required"),
+                  )
+                : null,
               activeBodyType === "raw" && Button
                 ? el(
                     Button,

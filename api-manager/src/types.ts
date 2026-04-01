@@ -1,7 +1,7 @@
 import type { RequestBodyType } from "./utils";
 
-export type HeaderItem = { key: string; value: string; enabled: boolean };
-export type ParamItem = { key: string; value: string; enabled: boolean };
+export type HeaderItem = { key: string; value: string; enabled: boolean; required?: boolean };
+export type ParamItem = { key: string; value: string; enabled: boolean; required?: boolean };
 
 export type PostExtractRule = {
   variable: string;
@@ -68,6 +68,7 @@ export type ImportedRequestExamples = {
 
 export type PathParamMeta = {
   name: string;
+  required?: boolean;
   selectedExampleId?: string;
   examples?: ImportedExampleValue[];
 };
@@ -84,6 +85,7 @@ export type ApiRequest = {
   auth?: AuthConfig;
   body: string | null;
   bodyType: RequestBodyType;
+  bodyRequired?: boolean;
   description?: string;
   examples?: ImportedRequestExamples;
   postExtract?: PostExtractRule[];
