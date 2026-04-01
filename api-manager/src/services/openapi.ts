@@ -268,6 +268,15 @@ function normalizeOpenApiPathTemplate(path: string, pathParams: PathParamMeta[])
 export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRequest[] {
   const requests: ImportedApiRequest[] = [];
   const paths = spec?.paths || {};
+
+  // Build tag order map from the spec's top-level tags array
+  const tagOrder: Record<string, number> = {};
+  if (Array.isArray(spec?.tags)) {
+    spec.tags.forEach((tagDef: any, idx: number) => {
+      const tagName = typeof tagDef === "string" ? tagDef : (tagDef?.name || "");
+      if (tagName) tagOrder[tagName] = idx;
+    });
+  }
   for (const [path, pathItem] of Object.entries(paths)) {
     for (const method of ["get", "post", "put", "delete", "patch", "head", "options"]) {
       const operation = (pathItem as any)?.[method];
@@ -394,8 +403,15 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
       requests.push({
         request,
         tag,
+        _tagOrder: tag && tagOrder[tag] !== undefined ? tagOrder[tag] : 9999,
       });
     }
   }
-  return requests;
+
+  // Sort: by tag order (from spec tags array), then by path+method order (paths object is already ordered)
+  return requests.sort((a, b) => {
+    const tagDiff = a._tagOrder - b._tagOrder;
+    if (tagDiff !== 0) return tagDiff;
+    return 0; // within same tag, preserve paths object order
+  });
 }

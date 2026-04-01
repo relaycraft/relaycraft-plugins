@@ -551,64 +551,109 @@ export function renderRunnerModal(ctx: any) {
             "div",
             { className: "am-runner-list" },
             // Top-level requests
-            ...topRequests.map((r: any) => {
-              const result = resultMap[r.id];
-              const state = result?.state || "pending";
-              const checked = runnerSelectedIds.includes(r.id);
+            ...(topRequests.length > 0
+              ? [
+                  el(
+                    "div",
+                    { key: "top-header", className: "am-runner-folder-header" },
+                    el(
+                      "button",
+                      {
+                        type: "button",
+                        className: `am-kv-toggle am-runner-header-toggle ${topRequests.every((r: any) => runnerSelectedIds.includes(r.id)) ? "am-kv-toggle--on" : "am-kv-toggle--off"}`,
+                        disabled: runnerRunning,
+                        onClick: () => {
+                          const allSelected = topRequests.every((r: any) => runnerSelectedIds.includes(r.id));
+                          if (allSelected) {
+                            setRunnerSelectedIds(runnerSelectedIds.filter((id: string) => !topRequests.some((r: any) => r.id === id)));
+                          } else {
+                            const newIds = [...new Set([...runnerSelectedIds, ...topRequests.map((r: any) => r.id)])];
+                            setRunnerSelectedIds(newIds);
+                          }
+                        },
+                      },
+                      renderIcon(topRequests.every((r: any) => runnerSelectedIds.includes(r.id)) ? icons.CheckCircle : icons.Circle, { width: 14, height: 14 }),
+                    ),
+                    el("span", { className: "text-ui text-muted-foreground font-medium" }, t("params")),
+                  ),
+                  ...topRequests.map((r: any) => {
+                    const result = resultMap[r.id];
+                    const state = result?.state || "pending";
+                    const checked = runnerSelectedIds.includes(r.id);
 
-              let statusCell: any;
-              if (!anyRun || state === "pending") {
-                statusCell = el("span", { style: { color: "color-mix(in srgb, var(--color-muted-foreground) 40%, transparent)" } }, "─");
-              } else if (state === "running") {
-                statusCell = el("span", { className: "am-runner-spinner" });
-              } else if (state === "done") {
-                const color = statusColor(result.status);
-                statusCell = el(
-                  "span",
-                  { style: { color } },
-                  `${result.status}  ${result.time}ms`,
-                );
-              } else {
-                statusCell = el(
-                  "span",
-                  { style: { color: "var(--color-destructive)" }, title: result?.error || "" },
-                  t("runner_result_error"),
-                );
-              }
+                    let statusCell: any;
+                    if (!anyRun || state === "pending") {
+                      statusCell = el("span", { style: { color: "color-mix(in srgb, var(--color-muted-foreground) 40%, transparent)" } }, "─");
+                    } else if (state === "running") {
+                      statusCell = el("span", { className: "am-runner-spinner" });
+                    } else if (state === "done") {
+                      const color = statusColor(result.status);
+                      statusCell = el(
+                        "span",
+                        { style: { color } },
+                        `${result.status}  ${result.time}ms`,
+                      );
+                    } else {
+                      statusCell = el(
+                        "span",
+                        { style: { color: "var(--color-destructive)" }, title: result?.error || "" },
+                        t("runner_result_error"),
+                      );
+                    }
 
-              return el(
-                "div",
-                { key: r.id, className: "am-runner-row" },
-                el(
-                  "button",
-                  {
-                    type: "button",
-                    className: `am-kv-toggle ${checked ? "am-kv-toggle--on" : "am-kv-toggle--off"}`,
-                    disabled: runnerRunning,
-                    onClick: () => {
-                      if (checked) {
-                        setRunnerSelectedIds(runnerSelectedIds.filter((x: string) => x !== r.id));
-                      } else {
-                        setRunnerSelectedIds([...runnerSelectedIds, r.id]);
-                      }
-                    },
-                  },
-                  renderIcon(checked ? icons.CheckCircle : icons.Circle, { width: 16, height: 16 }),
-                ),
-                el("span", { className: "am-method-badge am-method-badge--list am-method-badge--runner", "data-method": (r.method || "").toUpperCase() }, abbrevMethod(r.method)),
-                el("span", { className: "truncate flex-1 text-ui", title: r.name }, r.name),
-                el("span", { className: "am-runner-status" }, statusCell),
-              );
-            }),
+                    return el(
+                      "div",
+                      { key: r.id, className: "am-runner-row" },
+                      el(
+                        "button",
+                        {
+                          type: "button",
+                          className: `am-kv-toggle ${checked ? "am-kv-toggle--on" : "am-kv-toggle--off"}`,
+                          disabled: runnerRunning,
+                          onClick: () => {
+                            if (checked) {
+                              setRunnerSelectedIds(runnerSelectedIds.filter((x: string) => x !== r.id));
+                            } else {
+                              setRunnerSelectedIds([...runnerSelectedIds, r.id]);
+                            }
+                          },
+                        },
+                        renderIcon(checked ? icons.CheckCircle : icons.Circle, { width: 16, height: 16 }),
+                      ),
+                      el("span", { className: "am-method-badge am-method-badge--list am-method-badge--runner", "data-method": (r.method || "").toUpperCase() }, abbrevMethod(r.method)),
+                      el("span", { className: "truncate flex-1 text-ui", title: r.name }, r.name),
+                      el("span", { className: "am-runner-status" }, statusCell),
+                    );
+                  }),
+                ]
+              : []),
             // Folders
             ...folders.flatMap((folder: any) => {
               const reqs = folder.requests || [];
               const elements: any[] = [];
               if (reqs.length > 0) {
+                const allSelected = reqs.every((r: any) => runnerSelectedIds.includes(r.id));
                 elements.push(
                   el(
                     "div",
                     { key: `folder-${folder.id}`, className: "am-runner-folder-header" },
+                    el(
+                      "button",
+                      {
+                        type: "button",
+                        className: `am-kv-toggle am-runner-header-toggle ${allSelected ? "am-kv-toggle--on" : "am-kv-toggle--off"}`,
+                        disabled: runnerRunning,
+                        onClick: () => {
+                          if (allSelected) {
+                            setRunnerSelectedIds(runnerSelectedIds.filter((id: string) => !reqs.some((r: any) => r.id === id)));
+                          } else {
+                            const newIds = [...new Set([...runnerSelectedIds, ...reqs.map((r: any) => r.id)])];
+                            setRunnerSelectedIds(newIds);
+                          }
+                        },
+                      },
+                      renderIcon(allSelected ? icons.CheckCircle : icons.Circle, { width: 14, height: 14 }),
+                    ),
                     renderIcon(icons.Folder, { width: 12, className: "shrink-0 opacity-70" }),
                     el("span", { className: "text-ui text-muted-foreground font-medium" }, folder.name),
                   ),

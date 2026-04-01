@@ -96,6 +96,8 @@ export type ApiRequest = {
 export type ImportedApiRequest = {
   request: ApiRequest;
   tag?: string | null;
+  /** @internal — used for sorting during import */
+  _tagOrder?: number;
 };
 
 export type ApiCollection = {

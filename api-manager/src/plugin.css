@@ -486,52 +486,45 @@ input.am-search-input {
 .am-kv-toggle--off:hover {
   background: color-mix(in srgb, var(--color-muted) 40%, transparent);
 }
-.am-kv-input-group {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
-  border-radius: 10px;
-  overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.am-kv-input-group:focus-within {
-  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent);
-}
-.am-kv-input-group--disabled {
-  opacity: 0.5;
-  filter: grayscale(1);
-}
-.am-kv-input-group input {
+.am-kv-key-input,
+.am-kv-val-input {
   flex: 1 1 0;
   min-width: 0;
   padding: 6px 10px;
-  background: transparent;
-  border: none;
+  background: color-mix(in srgb, var(--color-muted) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  border-radius: 10px;
   outline: none;
   font-size: var(--text-tiny);
   font-family: var(--font-mono);
   color: var(--color-foreground);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.am-kv-input-group input::placeholder {
+.am-kv-key-input {
+  max-width: 38%;
+}
+.am-kv-val-input {
+  flex: 1 1 0;
+}
+.am-kv-key-input:focus,
+.am-kv-val-input:focus {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+.am-kv-key-input::placeholder,
+.am-kv-val-input::placeholder {
   color: color-mix(in srgb, var(--color-muted-foreground) 40%, transparent);
 }
-.am-kv-input-group input:first-child {
-  border-right: 1px solid color-mix(in srgb, var(--color-border) 20%, transparent);
-  flex: 0 0 36%;
+.am-kv-input--disabled {
+  opacity: 0.5;
+  filter: grayscale(1);
 }
-.am-required-marker {
-  position: relative;
-  z-index: 1;
-  margin-left: -10px;
-  margin-right: 4px;
+.am-kv-required-marker {
   color: var(--color-destructive);
   font-weight: 700;
   font-size: var(--text-tiny);
   flex-shrink: 0;
+  line-height: 1;
 }
 .am-kv-delete {
   flex: 0 0 auto;
@@ -801,10 +794,11 @@ textarea.am-field { height: auto; }
 .am-runner-folder-header:first-child {
   margin-top: 0;
 }
+.am-runner-header-toggle {
+  padding: 3px;
+}
 .am-runner-row--indented {
-  padding-left: 28px;
-  border-left: 2px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-  margin-left: 4px;
+  padding-left: 14px;
 }
 .am-runner-status {
   flex-shrink: 0;

@@ -384,18 +384,6 @@ export function createActionHub(deps: Deps) {
   async function sendRequest() {
     const { activeRequest, activeVariables } = getState();
     if (!activeRequest) return;
-    const unresolved = collectUnresolvedVariables(activeRequest, activeVariables);
-    if (unresolved.hasMissing && globalThis.confirm) {
-      const preview = unresolved.missingKeys.slice(0, 5).join(", ");
-      const suffix = unresolved.missingKeys.length > 5 ? ` +${unresolved.missingKeys.length - 5}` : "";
-      const confirmed = globalThis.confirm(
-        t("unresolved_variables_confirm", {
-          count: unresolved.missingKeys.length,
-          keys: `${preview}${suffix}`,
-        }),
-      );
-      if (!confirmed) return;
-    }
     setState.setSending(true);
     const snapshot = {
       name: activeRequest.name,

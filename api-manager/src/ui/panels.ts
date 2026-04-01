@@ -820,27 +820,28 @@ export function renderRequestEditor(ctx: any) {
                     },
                     renderIcon(p.enabled !== false ? icons.CheckCircle : icons.Circle, { width: 16, height: 16 }),
                   ),
+                  p.required
+                    ? el("span", { className: "am-kv-required-marker", title: t("required") }, "*")
+                    : null,
                   el(
-                    "div",
-                    { className: `am-kv-input-group${p.enabled !== false ? "" : " am-kv-input-group--disabled"}` },
-                    el("input", {
+                    "input",
+                    {
                       type: "text",
+                      className: `am-kv-key-input${p.enabled !== false ? "" : " am-kv-input--disabled"}`,
                       value: p.key,
                       placeholder: t("key"),
                       onChange: (e: any) =>
                         updateRequest({ params: requestParams.map((x: ParamItem, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
-                    }),
-                    p.required
-                      ? el("span", { className: "am-required-marker", title: t("required") }, "*")
-                      : null,
-                    el("input", {
-                      type: "text",
-                      value: p.value,
-                      placeholder: t("value"),
-                      onChange: (e: any) =>
-                        updateRequest({ params: requestParams.map((x: ParamItem, idx: number) => (idx === i ? { ...x, value: e.target.value } : x)) }),
-                    }),
+                    },
                   ),
+                  el("input", {
+                    type: "text",
+                    className: `am-kv-val-input${p.enabled !== false ? "" : " am-kv-input--disabled"}`,
+                    value: p.value,
+                    placeholder: t("value"),
+                    onChange: (e: any) =>
+                      updateRequest({ params: requestParams.map((x: ParamItem, idx: number) => (idx === i ? { ...x, value: e.target.value } : x)) }),
+                  }),
                   el(
                     "button",
                     {
@@ -899,27 +900,28 @@ export function renderRequestEditor(ctx: any) {
                     },
                     renderIcon(h.enabled ? icons.CheckCircle : icons.Circle, { width: 16, height: 16 }),
                   ),
+                  h.required
+                    ? el("span", { className: "am-kv-required-marker", title: t("required") }, "*")
+                    : null,
                   el(
-                    "div",
-                    { className: `am-kv-input-group${h.enabled ? "" : " am-kv-input-group--disabled"}` },
-                    el("input", {
+                    "input",
+                    {
                       type: "text",
+                      className: `am-kv-key-input${h.enabled ? "" : " am-kv-input--disabled"}`,
                       value: h.key,
                       placeholder: t("key"),
                       onChange: (e: any) =>
                         updateRequest({ headers: activeRequest.headers.map((x: any, idx: number) => (idx === i ? { ...x, key: e.target.value } : x)) }),
-                    }),
-                    h.required
-                      ? el("span", { className: "am-required-marker", title: t("required") }, "*")
-                      : null,
-                    el("input", {
-                      type: "text",
-                      value: h.value,
-                      placeholder: t("value"),
-                      onChange: (e: any) =>
-                        updateRequest({ headers: activeRequest.headers.map((x: any, idx: number) => (idx === i ? { ...x, value: e.target.value } : x)) }),
-                    }),
+                    },
                   ),
+                  el("input", {
+                    type: "text",
+                    className: `am-kv-val-input${h.enabled ? "" : " am-kv-input--disabled"}`,
+                    value: h.value,
+                    placeholder: t("value"),
+                    onChange: (e: any) =>
+                      updateRequest({ headers: activeRequest.headers.map((x: any, idx: number) => (idx === i ? { ...x, value: e.target.value } : x)) }),
+                  }),
                   el(
                     "button",
                     {
@@ -947,13 +949,6 @@ export function renderRequestEditor(ctx: any) {
             el(
               "div",
               { className: "flex items-center justify-end gap-2" },
-              activeRequest?.bodyRequired
-                ? el(
-                    "span",
-                    { className: "text-destructive font-bold text-xs px-1.5 py-0.5 rounded border border-destructive/30 bg-destructive/10", title: t("required") },
-                    t("required"),
-                  )
-                : null,
               activeBodyType === "raw" && Button
                 ? el(
                     Button,
@@ -1023,30 +1018,28 @@ export function renderRequestEditor(ctx: any) {
                             },
                             renderIcon(enabled ? icons.CheckCircle : icons.Circle, { width: 16, height: 16 }),
                           ),
-                          el(
-                            "div",
-                            { className: `am-kv-input-group${enabled ? "" : " am-kv-input-group--disabled"}` },
-                            el("input", {
-                              type: "text",
-                              value: item.key || "",
-                              placeholder: t("key"),
-                              onChange: (e: any) => {
-                                const next = [...formItems];
-                                next[idx] = { ...next[idx], key: e.target.value };
-                                updateFormItems(next);
-                              },
-                            }),
-                            el("input", {
-                              type: "text",
-                              value: item.value || "",
-                              placeholder: t("value"),
-                              onChange: (e: any) => {
-                                const next = [...formItems];
-                                next[idx] = { ...next[idx], value: e.target.value };
-                                updateFormItems(next);
-                              },
-                            }),
-                          ),
+                          el("input", {
+                            type: "text",
+                            className: `am-kv-key-input${enabled ? "" : " am-kv-input--disabled"}`,
+                            value: item.key || "",
+                            placeholder: t("key"),
+                            onChange: (e: any) => {
+                              const next = [...formItems];
+                              next[idx] = { ...next[idx], key: e.target.value };
+                              updateFormItems(next);
+                            },
+                          }),
+                          el("input", {
+                            type: "text",
+                            className: `am-kv-val-input${enabled ? "" : " am-kv-input--disabled"}`,
+                            value: item.value || "",
+                            placeholder: t("value"),
+                            onChange: (e: any) => {
+                              const next = [...formItems];
+                              next[idx] = { ...next[idx], value: e.target.value };
+                              updateFormItems(next);
+                            },
+                          }),
                           el(
                             "button",
                             {
