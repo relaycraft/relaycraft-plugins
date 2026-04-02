@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ApiCollection, ApiRequest, Environment, ImportedApiRequest, PostExtractRule, RunnerResult } from "./types";
-import { appendParamsToUrl, applyAuth, buildCurlCommand, collectUnresolvedVariables, extractRequestName, FORM_BODY_TYPE, normalizeRequestBodyType, parseFormBodyItems, resolveVariables as resolveVars, serializeFormBodyItems } from "./utils";
+import { appendParamsToUrl, applyAuth, buildCurlCommand, extractRequestName, FORM_BODY_TYPE, normalizeRequestBodyType, parseFormBodyItems, resolveVariables as resolveVars, serializeFormBodyItems } from "./utils";
 import { isPostmanCollection, parsePostmanCollection } from "./services/postman";
+import { load as parseYaml } from "js-yaml";
 
 type Deps = {
   storage: any;
@@ -9,7 +10,6 @@ type Deps = {
   t: (key: string, opts?: Record<string, unknown>) => string;
   parseOpenApi: (spec: any, generateId: () => string) => ImportedApiRequest[];
   generateId: () => string;
-  resolveVariables: (text: string, variables: Record<string, string>) => string;
   runnerAbortRef: { current: boolean };
   getState: () => {
     collections: any[];
@@ -68,7 +68,6 @@ export function createActionHub(deps: Deps) {
     t,
     parseOpenApi,
     generateId,
-    resolveVariables,
     runnerAbortRef,
     getState,
     setState,
@@ -90,7 +89,11 @@ export function createActionHub(deps: Deps) {
     try {
       return JSON.parse(text);
     } catch {
-      throw new Error(t("import_invalid_json"));
+      try {
+        const parsed = parseYaml(text);
+        if (parsed && typeof parsed === "object") return parsed;
+      } catch {}
+      throw new Error(t("import_invalid_document"));
     }
   };
 
@@ -147,15 +150,75 @@ export function createActionHub(deps: Deps) {
       const parsed = new URL(normalized);
       const path = parsed.pathname.replace(/\/+$/, "");
       const origin = parsed.origin;
-      if (!/\.json$/i.test(path)) {
+      if (!/\.(json|ya?ml)$/i.test(path)) {
         push(`${origin}/swagger.json`);
         push(`${origin}/openapi.json`);
         push(`${origin}/v3/api-docs`);
+        push(`${origin}/swagger.yaml`);
+        push(`${origin}/openapi.yaml`);
+        push(`${origin}/v3/api-docs.yaml`);
+        push(`${origin}/v3/api-docs.yml`);
       }
     } catch {
       return candidates;
     }
     return candidates;
+  };
+
+  const fetchDocumentFromUrl = async (url: string) => {
+    const normalized = normalizeHttpUrl(url);
+    if (!normalized) throw new Error(t("import_invalid_url"));
+    const res = await api.http.send({ method: "GET", url: normalized });
+    const status = Number(res?.status || 0);
+    if (status >= 400) throw new Error(`HTTP ${status}`);
+    return parseOpenApiDocument(res?.body);
+  };
+
+  const isOpenApiDocument = (doc: any) => {
+    return Boolean(doc?.paths || doc?.openapi || doc?.swagger);
+  };
+
+  const loadImportedRequests = async (
+    input: {
+      importFormat: "openapi" | "postman" | "curl";
+      importMode: "url" | "paste";
+      importUrl: string;
+      importText: string;
+    },
+  ): Promise<ImportedApiRequest[]> => {
+    if (input.importFormat === "postman") {
+      const doc =
+        input.importMode === "url"
+          ? await fetchDocumentFromUrl(input.importUrl)
+          : parseOpenApiDocument(input.importText);
+      if (!isPostmanCollection(doc)) throw new Error(t("import_not_postman"));
+      const imported = parsePostmanCollection(doc, generateId);
+      if (imported.length === 0) throw new Error(t("import_no_paths"));
+      return imported;
+    }
+
+    let spec: any = null;
+    if (input.importMode === "url") {
+      const candidates = buildSwaggerUrlCandidates(input.importUrl);
+      if (candidates.length === 0) throw new Error(t("import_invalid_url"));
+      let lastError: any = null;
+      for (const candidate of candidates) {
+        try {
+          const parsedDoc = await fetchDocumentFromUrl(candidate);
+          if (!isOpenApiDocument(parsedDoc)) throw new Error(t("import_not_openapi"));
+          spec = parsedDoc;
+          break;
+        } catch (e: any) {
+          lastError = e;
+        }
+      }
+      if (!spec) throw lastError || new Error(t("import_not_openapi"));
+    } else {
+      spec = parseOpenApiDocument(input.importText);
+    }
+    const imported = parseOpenApi(spec, generateId);
+    if (imported.length === 0) throw new Error(t("import_no_paths"));
+    return imported;
   };
 
   const getResponseHeaderValue = (headers: Record<string, string>, headerName: string) => {
@@ -200,7 +263,7 @@ export function createActionHub(deps: Deps) {
     return null;
   }
 
-  async function runPostExtract(request: ApiRequest, response: any) {
+  async function runPostExtract(request: ApiRequest, response: any, opts?: { silent?: boolean }) {
     const rules = Array.isArray(request.postExtract) ? request.postExtract : [];
     if (rules.length === 0) return;
     const { activeEnvId, environments } = getState();
@@ -229,7 +292,51 @@ export function createActionHub(deps: Deps) {
     );
     await storage.saveEnvironments(nextEnvironments);
     setState.setEnvironments(nextEnvironments);
-    api.ui.toast(t("post_extract_applied"), "success");
+    if (!opts?.silent) {
+      api.ui.toast(t("post_extract_applied"), "success");
+    }
+  }
+
+  function buildPreparedRequest(request: ApiRequest, variables: Record<string, string>) {
+    const resolvedUrl = resolveVars(request.url, variables).trim();
+    const resolvedParams = (request.params || []).map((p) => ({
+      key: resolveVars(p.key, variables),
+      value: resolveVars(p.value, variables),
+      enabled: p.enabled !== false,
+    }));
+    const urlWithParams = appendParamsToUrl(resolvedUrl, resolvedParams);
+    const baseUrl = /^https?:\/\//i.test(urlWithParams) ? urlWithParams : `http://${urlWithParams}`;
+    let headers = (request.headers || []).reduce((acc, h) => {
+      if (h.enabled && h.key) {
+        acc[resolveVars(h.key, variables)] = resolveVars(h.value, variables);
+      }
+      return acc;
+    }, {} as Record<string, string>);
+    const authResult = applyAuth(request.auth, headers, baseUrl, (s) => resolveVars(s, variables));
+    headers = authResult.headers;
+    const cleanUrl = authResult.url;
+    const bodyType = normalizeRequestBodyType(request.bodyType);
+    let body: string | null = null;
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+      if (bodyType === FORM_BODY_TYPE) {
+        const formItems = parseFormBodyItems(request.body).map((item) => ({
+          ...item,
+          key: resolveVars(item.key, variables),
+          value: resolveVars(item.value, variables),
+        }));
+        body = serializeFormBodyItems(formItems);
+        const hasContentType = Object.keys(headers).some((key) => key.toLowerCase() === "content-type");
+        if (!hasContentType) headers["Content-Type"] = "application/x-www-form-urlencoded";
+      } else if (bodyType === "raw") {
+        body = request.body ? resolveVars(request.body, variables) : null;
+      }
+    }
+    return {
+      method: request.method,
+      url: cleanUrl,
+      headers,
+      body,
+    };
   }
 
   async function refreshIndexAndMaybeReload(collectionId?: string) {
@@ -410,39 +517,9 @@ export function createActionHub(deps: Deps) {
       setState.setRequestHistory(nextHistory);
     };
     try {
-      const resolvedUrl = resolveVariables(activeRequest.url, activeVariables).trim();
-      const resolvedParams = (activeRequest.params || []).map((p) => ({
-        key: resolveVariables(p.key, activeVariables),
-        value: resolveVariables(p.value, activeVariables),
-        enabled: p.enabled !== false,
-      }));
-      const urlWithParams = appendParamsToUrl(resolvedUrl, resolvedParams);
-      const baseUrl = /^https?:\/\//i.test(urlWithParams) ? urlWithParams : `http://${urlWithParams}`;
-      let headers = (activeRequest.headers || []).reduce((acc, h) => {
-        if (h.enabled && h.key) {
-          acc[resolveVariables(h.key, activeVariables)] = resolveVariables(h.value, activeVariables);
-        }
-        return acc;
-      }, {} as Record<string, string>);
-      const authResult = applyAuth(activeRequest.auth, headers, baseUrl, (s) => resolveVariables(s, activeVariables));
-      headers = authResult.headers;
-      const cleanUrl = authResult.url;
-      const bodyType = normalizeRequestBodyType(activeRequest.bodyType);
-      let body: string | null = null;
-      if (!["GET", "HEAD", "OPTIONS"].includes(activeRequest.method)) {
-        if (bodyType === "none") {
-          body = null;
-        } else if (bodyType === FORM_BODY_TYPE) {
-          const formItems = parseFormBodyItems(activeRequest.body);
-          body = serializeFormBodyItems(formItems);
-          const hasContentType = Object.keys(headers).some((key) => key.toLowerCase() === "content-type");
-          if (!hasContentType) headers["Content-Type"] = "application/x-www-form-urlencoded";
-        } else {
-          body = activeRequest.body || null;
-        }
-      }
+      const prepared = buildPreparedRequest(activeRequest, activeVariables);
       const start = Date.now();
-      const res = await api.http.send({ method: activeRequest.method, url: cleanUrl, headers, body });
+      const res = await api.http.send(prepared);
       const finalResponse = { ...res, time: Date.now() - start };
       setState.setResponse(finalResponse);
       await runPostExtract(activeRequest, finalResponse);
@@ -565,38 +642,18 @@ export function createActionHub(deps: Deps) {
   async function copyAsCurl() {
     const { activeRequest, activeVariables } = getState();
     if (!activeRequest) return;
-    const resolvedParams = (activeRequest.params || []).map((p) => ({
-      key: resolveVars(p.key, activeVariables),
-      value: resolveVars(p.value, activeVariables),
-      enabled: p.enabled !== false,
-    }));
-    const baseUrl = appendParamsToUrl(resolveVars(activeRequest.url, activeVariables), resolvedParams);
-    let resolvedHeaders = (activeRequest.headers || []).map((h) => ({
-      key: resolveVars(h.key, activeVariables),
-      value: resolveVars(h.value, activeVariables),
-      enabled: h.enabled,
-    }));
-    const authResult = applyAuth(
-      activeRequest.auth,
-      Object.fromEntries(resolvedHeaders.filter((h) => h.enabled && h.key).map((h) => [h.key, h.value])),
-      baseUrl,
-      (s) => resolveVars(s, activeVariables),
-    );
-    // Re-merge auth headers back as array entries
-    const authHeaderKeys = new Set(Object.keys(authResult.headers).map(k => k.toLowerCase()));
-    const originalLowerKeys = new Set(resolvedHeaders.filter(h => h.enabled && h.key).map(h => h.key.toLowerCase()));
-    const injectedHeaders = Object.entries(authResult.headers)
-      .filter(([k]) => !originalLowerKeys.has(k.toLowerCase()))
-      .map(([k, v]) => ({ key: k, value: v as string, enabled: true }));
-    void authHeaderKeys;
-    const resolved = {
-      method: activeRequest.method,
-      url: authResult.url,
-      headers: [...resolvedHeaders, ...injectedHeaders],
-      body: activeRequest.body ? resolveVars(activeRequest.body, activeVariables) : null,
-      bodyType: activeRequest.bodyType,
-    };
-    const command = buildCurlCommand(resolved);
+    const prepared = buildPreparedRequest(activeRequest, activeVariables);
+    const command = buildCurlCommand({
+      method: prepared.method,
+      url: prepared.url,
+      headers: Object.entries(prepared.headers || {}).map(([key, value]) => ({
+        key,
+        value: String(value),
+        enabled: true,
+      })),
+      body: prepared.body,
+      bodyType: normalizeRequestBodyType(activeRequest.bodyType),
+    });
     try {
       await navigator.clipboard.writeText(command);
       api.ui.toast(t("curl_copied"), "success");
@@ -620,52 +677,12 @@ export function createActionHub(deps: Deps) {
     if (!target) return api.ui.toast(t("import_error"), "error");
     setState.setImporting(true);
     try {
-      let importedRequests: ImportedApiRequest[] = [];
-
-      if (importFormat === "postman") {
-        let doc: any = null;
-        if (importMode === "url") {
-          const url = normalizeHttpUrl(importUrl);
-          if (!url) throw new Error(t("import_invalid_url"));
-          const res = await api.http.send({ method: "GET", url });
-          const status = Number(res?.status || 0);
-          if (status >= 400) throw new Error(`HTTP ${status}`);
-          doc = parseOpenApiDocument(res?.body);
-        } else {
-          doc = parseOpenApiDocument(importText);
-        }
-        if (!isPostmanCollection(doc)) throw new Error(t("import_not_postman"));
-        importedRequests = parsePostmanCollection(doc, generateId);
-        if (importedRequests.length === 0) throw new Error(t("import_no_paths"));
-      } else {
-        // openapi (default)
-        let spec: any = null;
-        if (importMode === "url") {
-          const candidates = buildSwaggerUrlCandidates(importUrl);
-          if (candidates.length === 0) throw new Error(t("import_invalid_url"));
-          let lastError: any = null;
-          for (const candidate of candidates) {
-            try {
-              const res = await api.http.send({ method: "GET", url: candidate });
-              const status = Number(res?.status || 0);
-              if (status >= 400) throw new Error(`HTTP ${status}`);
-              const parsedDoc = parseOpenApiDocument(res?.body);
-              if (!parsedDoc?.paths && !parsedDoc?.openapi && !parsedDoc?.swagger) {
-                throw new Error(t("import_not_openapi"));
-              }
-              spec = parsedDoc;
-              break;
-            } catch (e: any) {
-              lastError = e;
-            }
-          }
-          if (!spec) throw lastError || new Error(t("import_not_openapi"));
-        } else {
-          spec = parseOpenApiDocument(importText);
-        }
-        importedRequests = parseOpenApi(spec, generateId);
-        if (importedRequests.length === 0) throw new Error(t("import_no_paths"));
-      }
+      const importedRequests = await loadImportedRequests({
+        importFormat,
+        importMode,
+        importUrl,
+        importText,
+      });
 
       const next =
         importFormat === "postman"
@@ -741,28 +758,8 @@ export function createActionHub(deps: Deps) {
 
       const start = Date.now();
       try {
-        const resolvedUrl = resolveVars(req.url, currentVars).trim();
-        const cleanUrl = /^https?:\/\//i.test(resolvedUrl) ? resolvedUrl : `http://${resolvedUrl}`;
-        const headers = (req.headers || []).reduce((acc: Record<string, string>, h: any) => {
-          if (h.enabled && h.key) {
-            acc[resolveVars(h.key, currentVars)] = resolveVars(h.value, currentVars);
-          }
-          return acc;
-        }, {});
-        const bodyType = normalizeRequestBodyType(req.bodyType);
-        let body: string | null = null;
-        if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-          if (bodyType === FORM_BODY_TYPE) {
-            const formItems = parseFormBodyItems(req.body);
-            body = serializeFormBodyItems(formItems);
-            if (!Object.keys(headers).some((k) => k.toLowerCase() === "content-type")) {
-              headers["Content-Type"] = "application/x-www-form-urlencoded";
-            }
-          } else if (bodyType === "raw") {
-            body = req.body || null;
-          }
-        }
-        const res = await api.http.send({ method: req.method, url: cleanUrl, headers, body });
+        const prepared = buildPreparedRequest(req, currentVars);
+        const res = await api.http.send(prepared);
         results[i] = {
           ...results[i],
           status: Number(res?.status || 0),
@@ -772,7 +769,7 @@ export function createActionHub(deps: Deps) {
         };
         // Apply extract rules: persist to storage AND update local vars for subsequent requests
         if (Array.isArray(req.postExtract) && req.postExtract.length > 0) {
-          await runPostExtract(req, res);
+          await runPostExtract(req, res, { silent: true });
           let parsedBody: any = null;
           try { parsedBody = JSON.parse(res?.body || ""); } catch {}
           for (const rule of req.postExtract) {

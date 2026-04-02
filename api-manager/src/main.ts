@@ -7,7 +7,7 @@ import type { ApiCollection, ApiRequest, CollectionMeta, Environment, Unresolved
 import { createIcons } from "./ui/icons";
 import { renderRequestEditor, renderResponsePanel, renderSidebar } from "./ui/panels";
 import { renderDeleteEntityModal, renderEnvModal, renderFlowModal, renderImportModal, renderMockModal, renderMoveRequestModal, renderRunnerModal, renderTempVariableModal } from "./ui/modals";
-import { collectUnresolvedVariables, extractRequestName, generateId, PRESET_ENV_VARIABLES, resolveVariables } from "./utils";
+import { collectUnresolvedVariables, extractRequestName, generateId, PRESET_ENV_VARIABLES } from "./utils";
 
 (() => {
   type ReactLike = {
@@ -377,7 +377,6 @@ import { collectUnresolvedVariables, extractRequestName, generateId, PRESET_ENV_
       t,
       parseOpenApi,
       generateId,
-      resolveVariables,
       runnerAbortRef,
       getState: () => ({
         collections,

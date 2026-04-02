@@ -1,4 +1,4 @@
-import type { ApiRequest, HeaderItem, ImportedApiRequest, ImportedExampleValue, ImportedRequestExamples, ParamItem, PathParamMeta } from "../types";
+import type { ApiRequest, AuthConfig, HeaderItem, ImportedApiRequest, ImportedExampleValue, ImportedRequestExamples, ParamItem, PathParamMeta } from "../types";
 
 function resolveRef(root: any, value: any): any {
   const ref = value?.$ref;
@@ -265,9 +265,178 @@ function normalizeOpenApiPathTemplate(path: string, pathParams: PathParamMeta[])
   });
 }
 
+function normalizePath(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed || trimmed === "/") return "";
+  return trimmed.startsWith("/") ? trimmed.replace(/\/+$/, "") : `/${trimmed.replace(/\/+$/, "")}`;
+}
+
+function extractPathFromServerUrl(serverUrl: string) {
+  const raw = String(serverUrl || "").trim();
+  if (!raw) return "";
+  const normalized = raw.replace(/\{[^}]+\}/g, "x");
+  try {
+    const parsed = new URL(normalized);
+    return normalizePath(parsed.pathname || "");
+  } catch {
+    if (normalized.startsWith("/")) return normalizePath(normalized);
+    return "";
+  }
+}
+
+function resolveSpecBasePath(spec: any) {
+  if (Array.isArray(spec?.servers) && spec.servers.length > 0) {
+    const firstServer = spec.servers.find((s: any) => typeof s?.url === "string" && String(s.url).trim());
+    const serverPath = firstServer ? extractPathFromServerUrl(String(firstServer.url)) : "";
+    if (serverPath) return serverPath;
+  }
+  const swaggerBasePath = normalizePath(String(spec?.basePath || ""));
+  if (swaggerBasePath) return swaggerBasePath;
+  return "";
+}
+
+function withBasePath(path: string, basePath: string) {
+  const normalizedPath = normalizePath(path) || "/";
+  const normalizedBase = normalizePath(basePath);
+  if (!normalizedBase) return normalizedPath;
+  if (normalizedPath === normalizedBase || normalizedPath.startsWith(`${normalizedBase}/`)) return normalizedPath;
+  return `${normalizedBase}${normalizedPath === "/" ? "" : normalizedPath}`;
+}
+
+function getSecuritySchemes(spec: any): Record<string, any> {
+  return {
+    ...(spec?.components?.securitySchemes || {}),
+    ...(spec?.securityDefinitions || {}),
+  };
+}
+
+function toSecuritySchemeAuth(name: string, scheme: any): AuthConfig | undefined {
+  const schemeType = String(scheme?.type || "").toLowerCase();
+  if (!schemeType) return undefined;
+  if (schemeType === "basic") {
+    return {
+      type: "basic",
+      basicUser: "{{username}}",
+      basicPass: "{{password}}",
+    };
+  }
+  if (schemeType === "http") {
+    const httpScheme = String(scheme?.scheme || "").toLowerCase();
+    if (httpScheme === "bearer") {
+      return {
+        type: "bearer",
+        bearer: "{{token}}",
+      };
+    }
+    if (httpScheme === "basic") {
+      return {
+        type: "basic",
+        basicUser: "{{username}}",
+        basicPass: "{{password}}",
+      };
+    }
+    return undefined;
+  }
+  if (schemeType === "apikey") {
+    const schemeLocation = String(scheme?.in || "").toLowerCase();
+    if (schemeLocation === "cookie") {
+      const cookieName = String(scheme?.name || name || "apiKey");
+      return {
+        type: "apikey",
+        apikeyKey: "Cookie",
+        apikeyValue: `${cookieName}={{apiKey}}`,
+        apikeyLocation: "header",
+      };
+    }
+    return {
+      type: "apikey",
+      apikeyKey: String(scheme?.name || name || "X-API-Key"),
+      apikeyValue: "{{apiKey}}",
+      apikeyLocation: schemeLocation === "query" ? "query" : "header",
+    };
+  }
+  return undefined;
+}
+
+function resolveOperationAuth(spec: any, operation: any): AuthConfig | undefined {
+  if (Array.isArray(operation?.security) && operation.security.length === 0) {
+    return { type: "none" };
+  }
+  const requirements = Array.isArray(operation?.security)
+    ? operation.security
+    : Array.isArray(spec?.security)
+      ? spec.security
+      : null;
+  if (!requirements || requirements.length === 0) return undefined;
+  const schemes = getSecuritySchemes(spec);
+  for (const requirement of requirements) {
+    if (!requirement || typeof requirement !== "object") continue;
+    for (const name of Object.keys(requirement)) {
+      const rawScheme = schemes[name];
+      if (!rawScheme) continue;
+      const scheme = dereference(spec, rawScheme);
+      const auth = toSecuritySchemeAuth(name, scheme);
+      if (auth) return auth;
+    }
+  }
+  return undefined;
+}
+
+function buildFormBodyItemsFromValue(value: unknown): Array<{ key: string; value: string; enabled: boolean }> {
+  const toItemsFromObject = (obj: Record<string, unknown>) =>
+    Object.entries(obj).map(([key, raw]) => ({
+      key,
+      value:
+        raw === null || raw === undefined
+          ? ""
+          : typeof raw === "string"
+            ? raw
+            : typeof raw === "number" || typeof raw === "boolean"
+              ? String(raw)
+              : JSON.stringify(raw),
+      enabled: true,
+    }));
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return toItemsFromObject(value as Record<string, unknown>);
+  }
+  if (typeof value !== "string") return [];
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return toItemsFromObject(parsed as Record<string, unknown>);
+    }
+  } catch {}
+
+  const params = new URLSearchParams(trimmed);
+  const items: Array<{ key: string; value: string; enabled: boolean }> = [];
+  params.forEach((paramValue, key) => {
+    items.push({ key, value: paramValue, enabled: true });
+  });
+  return items;
+}
+
 export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRequest[] {
-  const requests: ImportedApiRequest[] = [];
+  type SortableImportedApiRequest = ImportedApiRequest & {
+    _tagOrder?: number;
+    _path?: string;
+    _methodOrder?: number;
+  };
+  const requests: SortableImportedApiRequest[] = [];
   const paths = spec?.paths || {};
+  const specBasePath = resolveSpecBasePath(spec);
+  const methodOrder: Record<string, number> = {
+    GET: 0,
+    POST: 1,
+    PUT: 2,
+    DELETE: 3,
+    PATCH: 4,
+    HEAD: 5,
+    OPTIONS: 6,
+  };
 
   // Build tag order map from the spec's top-level tags array
   const tagOrder: Record<string, number> = {};
@@ -290,6 +459,7 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         ...((pathItem as any)?.parameters || []),
         ...(operation.parameters || []),
       ].map((parameter) => dereference(spec, parameter));
+      const cookieParams: Array<{ name: string; value: string; required: boolean }> = [];
 
       for (const parameter of allParameters) {
         const name = String(parameter?.name || "").trim();
@@ -337,6 +507,32 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
               },
             };
           }
+        } else if (location === "cookie") {
+          cookieParams.push({
+            name,
+            value: selectedValue,
+            required: isRequired,
+          });
+        }
+      }
+      if (cookieParams.length > 0) {
+        const cookieValue = cookieParams
+          .map((cookieParam) => `${cookieParam.name}=${cookieParam.value}`)
+          .join("; ");
+        const existingCookieHeader = headers.find((header) => header.key.toLowerCase() === "cookie");
+        if (existingCookieHeader) {
+          existingCookieHeader.value = existingCookieHeader.value
+            ? `${existingCookieHeader.value}; ${cookieValue}`
+            : cookieValue;
+          existingCookieHeader.required =
+            existingCookieHeader.required || cookieParams.some((cookieParam) => cookieParam.required) || undefined;
+        } else {
+          headers.push({
+            key: "Cookie",
+            value: cookieValue,
+            enabled: true,
+            required: cookieParams.some((cookieParam) => cookieParam.required) || undefined,
+          });
         }
       }
 
@@ -369,7 +565,16 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         mediaType: reqBodyMediaType,
       });
       const selectedBodyExample = bodyExamples[0];
-      const body = selectedBodyExample ? selectedBodyExample.value : null;
+      let body = selectedBodyExample ? selectedBodyExample.value : null;
+      let bodyType: ApiRequest["bodyType"] = body ? "raw" : "none";
+      if (reqBodyMediaType === "application/x-www-form-urlencoded") {
+        const formItems = buildFormBodyItemsFromValue(body);
+        if (formItems.length > 0) {
+          body = JSON.stringify(formItems);
+          bodyType = "x-www-form-urlencoded";
+        }
+      }
+      const auth = resolveOperationAuth(spec, operation);
 
       if (bodyExamples.length > 0) {
         examples.body = {
@@ -382,7 +587,7 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         id: generateId(),
         name: operation.summary || `${method.toUpperCase()} ${path}`,
         method: method.toUpperCase(),
-        url: `{{BASE_URL}}${normalizeOpenApiPathTemplate(path, pathParams)}`,
+        url: `{{BASE_URL}}${normalizeOpenApiPathTemplate(withBasePath(path, specBasePath), pathParams)}`,
         headers: [
           ...(headers.length > 0 ? headers : []),
           ...(reqBodyMediaType && !headers.some((header) => header.key.toLowerCase() === "content-type")
@@ -392,7 +597,8 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         params,
         ...(pathParams.length > 0 ? { pathParams } : {}),
         body,
-        bodyType: body ? "raw" : "none",
+        bodyType,
+        ...(auth ? { auth } : {}),
         bodyRequired: isBodyRequired || undefined,
         description: operation.description || "",
         ...(examples.body || examples.params || examples.headers ? { examples } : {}),
@@ -404,15 +610,24 @@ export function parseOpenApi(spec: any, generateId: () => string): ImportedApiRe
         request,
         tag,
         _tagOrder: tag && tagOrder[tag] !== undefined ? tagOrder[tag] : 9999,
+        _path: path,
+        _methodOrder: methodOrder[method.toUpperCase()] ?? 9999,
       });
     }
   }
 
-  // Sort: by tag order (from spec tags array), then by path+method order (paths object is already ordered)
+  // Sort: by tag order, then path, then method
   const sorted = requests.sort((a, b) => {
-    return a._tagOrder - b._tagOrder;
+    const tagDiff = (a._tagOrder ?? 9999) - (b._tagOrder ?? 9999);
+    if (tagDiff !== 0) return tagDiff;
+    const pathDiff = String(a._path || "").localeCompare(String(b._path || ""));
+    if (pathDiff !== 0) return pathDiff;
+    return (a._methodOrder ?? 9999) - (b._methodOrder ?? 9999);
   });
-  // Clean up internal _tagOrder field
-  sorted.forEach((r) => delete (r as any)._tagOrder);
+  sorted.forEach((r) => {
+    delete (r as any)._tagOrder;
+    delete (r as any)._path;
+    delete (r as any)._methodOrder;
+  });
   return sorted;
 }

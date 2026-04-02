@@ -971,9 +971,9 @@ export function renderRequestEditor(ctx: any) {
                   className: "h-8 text-ui",
                   containerClassName: "w-36 shrink-0",
                 },
-                el("option", { value: "none" }, "None"),
-                el("option", { value: FORM_BODY_TYPE }, "Form-data"),
-                el("option", { value: "raw" }, "JSON"),
+                el("option", { value: "none" }, t("body_none")),
+                el("option", { value: FORM_BODY_TYPE }, t("body_form")),
+                el("option", { value: "raw" }, t("body_raw")),
               ),
             ),
             activeBodyType === "none"
@@ -985,7 +985,7 @@ export function renderRequestEditor(ctx: any) {
                     el(
                       "div",
                       { className: "am-kv-title-row" },
-                      el("span", { className: "am-kv-title-label" }, "Form Data"),
+                      el("span", { className: "am-kv-title-label" }, t("body_form")),
                       el(
                         "button",
                         {
