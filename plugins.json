@@ -16,7 +16,7 @@
                     "description": "面向开发者的 AI 辅助工具：JWT 调试、代码转换等。"
                 }
             },
-            "downloadCount": 34
+            "downloadCount": 36
         },
         {
             "id": "com.relaycraft.plugins.privacy-guard",
@@ -33,7 +33,7 @@
                     "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。"
                 }
             },
-            "downloadCount": 13
+            "downloadCount": 14
         },
         {
             "id": "com.relaycraft.plugins.status-monitor",
@@ -50,7 +50,7 @@
                     "description": "一个轻量级、原生外观的状态栏系统资源监视器。"
                 }
             },
-            "downloadCount": 37
+            "downloadCount": 38
         },
         {
             "id": "com.relaycraft.plugins.lang-spanish",
@@ -78,7 +78,7 @@
             "icon": "BookOpen",
             "category": "utility",
             "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.api-manager/v1.2.0/com.relaycraft.api-manager-v1.2.0.rcplugin",
-            "downloadCount": 8
+            "downloadCount": 10
         }
     ]
 }
