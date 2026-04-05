@@ -9,7 +9,7 @@ locales:
     name: "隐私卫士"
     description: "检测并防止 API 流量中的个人身份信息 (PII) 泄露。"
 author: "RelayCraft Team"
-icon: "shield"
+icon: "Shield"
 
 engines:
   relaycraft: ">=1.0.0"
@@ -27,4 +27,3 @@ capabilities:
 
 permissions:
   - "proxy:write"
-  - "logging:write"

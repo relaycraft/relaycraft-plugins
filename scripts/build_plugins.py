@@ -166,6 +166,9 @@ def main():
         entry["category"] = manifest.get("category", entry.get("category", "utility"))
         entry["downloadUrl"] = download_url
         
+        if "locales" in manifest or "locales" in entry:
+            entry["locales"] = manifest.get("locales", entry.get("locales"))
+        
         existing_plugins_map[p_id] = entry
         updated_count += 1
         

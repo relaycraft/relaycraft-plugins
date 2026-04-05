@@ -12,3 +12,4 @@ node_modules/
 dist/
 build_results.json
 releases_to_create.json
+api-manager/index.js

@@ -78,6 +78,12 @@
             "icon": "BookOpen",
             "category": "utility",
             "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.api-manager/v1.2.0/com.relaycraft.api-manager-v1.2.0.rcplugin",
+            "locales": {
+                "zh": {
+                    "name": "API 工作台",
+                    "description": "面向调试与编排的 API 工作台，支持集合、环境变量、Mock 规则与 OpenAPI 导入。"
+                }
+            },
             "downloadCount": 12
         }
     ]

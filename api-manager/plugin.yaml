@@ -10,7 +10,7 @@ locales:
 author: "RelayCraft Team"
 icon: "BookOpen"
 engines:
-  relaycraft: ">=1.0.0-rc.13"
+  relaycraft: ">=1.0.0"
 capabilities:
   ui:
     entry: "index.js"
