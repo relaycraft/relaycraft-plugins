@@ -219,4 +219,4 @@ RelayCraft's plugin system is evolving rapidly. The following features will be r
   - Ensure the output file exists inside the plugin directory before packaging.
 - **Build works locally but not in CI**
   - Make sure your changes touch workflow-trigger paths (`*.ts`, `*.tsx`, `*.js`, `plugin.yaml`, `scripts/**`, etc.).
-  - Ensure required build dependencies are declared in repository `package.json`.
+  - Ensure required build dependencies are declared in your own plugin's `package.json` (This repository uses the pnpm workspace architecture for plugin dependency isolation).

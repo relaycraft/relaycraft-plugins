@@ -222,4 +222,4 @@ RelayCraft 的插件系统正在快速进化，以下功能将陆续开放：
   - 确认构建产物文件位于插件目录内。
 - **本地可构建，CI 失败**
   - 确认改动命中了 workflow 触发路径（`*.ts`、`*.tsx`、`*.js`、`plugin.yaml`、`scripts/**` 等）。
-  - 确认构建依赖已在仓库根 `package.json` 声明。
+  - 确认构建依赖已在你自己的插件目录下的 `package.json` 中声明（本仓库已启用 pnpm workspace 架构，实现插件依赖隔离）。

@@ -27,6 +27,6 @@ permissions:
 build:
   enabled: true
   tool: "vite"
-  command: "pnpm -C .. run build:api-manager"
+  command: "pnpm build"
   output: "index.js"
   config: "vite.config.ts"
