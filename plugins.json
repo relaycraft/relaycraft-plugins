@@ -4,12 +4,12 @@
         {
             "id": "com.relaycraft.plugins.smart-devtools",
             "name": "Smart DevTools",
-            "version": "1.1.1",
+            "version": "1.1.2",
             "author": "RelayCraft Team",
             "description": "AI-powered utilities for developers: JWT Debugger, Code Converter, and more.",
             "category": "utility",
             "icon": "Terminal",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.smart-devtools/v1.1.1/com.relaycraft.plugins.smart-devtools-v1.1.1.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.smart-devtools/v1.1.2/com.relaycraft.plugins.smart-devtools-v1.1.2.rcplugin",
             "locales": {
                 "zh": {
                     "name": "智能开发工具箱",
