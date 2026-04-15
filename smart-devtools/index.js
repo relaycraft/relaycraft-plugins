@@ -15,12 +15,13 @@
             .devtools-panel {
                 background: var(--color-card);
                 border: 1px solid var(--color-border);
-                border-radius: 8px;
+                border-radius: 10px;
                 position: relative;
-                transition: border-color 0.2s;
+                transition: border-color 0.2s, box-shadow 0.2s;
             }
             .devtools-panel:focus-within {
                 border-color: var(--color-primary);
+                box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
             }
             .devtools-textarea {
                 background: var(--color-muted);
@@ -47,6 +48,17 @@
             .vertical-tabs-list {
                 background: transparent !important;
                 justify-content: flex-start !important;
+                position: relative;
+            }
+            .vertical-tabs-list::before {
+                content: '';
+                position: absolute;
+                right: 0;
+                top: 8px;
+                bottom: 8px;
+                width: 1px;
+                background: var(--color-border);
+                border-radius: 1px;
             }
             .vertical-tab-trigger {
                 justify-content: flex-start !important;
@@ -54,28 +66,45 @@
                 margin-bottom: 2px;
                 border: 1px solid transparent;
                 color: var(--color-muted-foreground);
+                position: relative;
+                overflow: hidden;
+            }
+            .vertical-tab-trigger::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%) scaleY(0);
+                width: 3px;
+                height: 60%;
+                background: var(--color-primary);
+                border-radius: 0 2px 2px 0;
+                transition: transform 0.2s;
             }
             .vertical-tab-trigger:hover {
                 background-color: var(--color-muted);
                 color: var(--color-foreground);
             }
             .vertical-tab-trigger[aria-selected='true'] {
-                background-color: color-mix(in srgb, var(--color-primary), transparent 90%) !important;
+                background-color: color-mix(in srgb, var(--color-primary), transparent 92%) !important;
                 color: var(--color-primary) !important;
                 border-color: transparent !important;
                 font-weight: 600;
                 box-shadow: none !important;
             }
+            .vertical-tab-trigger[aria-selected='true']::before {
+                transform: translateY(-50%) scaleY(1);
+            }
             
             .section-label {
                 text-transform: uppercase;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 700;
-                letter-spacing: 0.05em;
+                letter-spacing: 0.08em;
                 color: var(--color-muted-foreground);
                 margin-bottom: 0px;
                 display: inline-block;
-                opacity: 0.7;
+                opacity: 0.8;
                 vertical-align: middle;
             }
             .jwt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; position: relative; top: -1px; }
@@ -89,6 +118,7 @@
                 border-radius: 8px;
                 border: 1px solid var(--color-border);
                 margin-top: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             }
 
             @keyframes pulse-subtle {
@@ -100,7 +130,7 @@
                 animation: pulse-subtle 0.8s ease-in-out 1;
             }
             
-            /* Color Picker Reset */
+            /* Color Picker */
             .color-picker-input {
                 -webkit-appearance: none;
                 appearance: none;
@@ -114,7 +144,62 @@
             }
             .color-picker-input::-webkit-color-swatch {
                 border: none;
-                border-radius: 12px; /* rounded-xl */
+                border-radius: 12px;
+            }
+            .color-preview-large {
+                width: 120px;
+                height: 120px;
+                border-radius: 16px;
+                border: 4px solid var(--color-card);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px var(--color-border);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .color-preview-large:hover {
+                transform: scale(1.02);
+                box-shadow: 0 6px 24px rgba(0,0,0,0.2), 0 0 0 1px var(--color-border);
+            }
+            
+            /* Error state */
+            .devtools-error {
+                background: color-mix(in srgb, var(--color-destructive) 8%, transparent);
+                border: 1px solid color-mix(in srgb, var(--color-destructive) 20%, transparent);
+                border-radius: 8px;
+                padding: 10px 14px;
+                font-size: 12px;
+                color: var(--color-destructive);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .devtools-error::before {
+                content: '!';
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: var(--color-destructive);
+                color: white;
+                font-size: 11px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            
+            /* Tool header */
+            .devtools-tool-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 12px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid var(--color-border);
+            }
+            .devtools-tool-header h2 {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--color-foreground);
+                margin: 0;
             }
         `;
         document.head.appendChild(style);
@@ -225,7 +310,7 @@
                         React.createElement(Section, { title: 'payload', content: parts.payload, type: 'payload', onEdit: (v) => updateParts('payload', v), pulse: lastUpdateArea === 'token', t, Editor }),
                         React.createElement(Section, { title: 'signature', content: parts.signature, type: 'signature', onEdit: (v) => updateParts('signature', v), pulse: lastUpdateArea === 'token', t, Editor })
                     )
-                ) : React.createElement('div', { className: "p-4 text-xs text-destructive bg-destructive/5 rounded-lg border border-destructive/10" }, error)
+                ) : React.createElement('div', { className: "devtools-error" }, error)
             )
         );
     };
@@ -441,19 +526,24 @@
         };
         
         return React.createElement('div', { className: "h-full flex flex-col gap-6 p-4" },
-             React.createElement('div', { className: "flex gap-6 items-start" },
-                React.createElement('div', { className: "flex flex-col gap-2 items-center" },
-                    React.createElement('input', { type: "color", value: pickerValue, onChange: handlePickerChange, className: "color-picker-input w-32 h-32 rounded-xl cursor-pointer shadow-lg" }),
+             React.createElement('div', { className: "flex gap-8 items-start" },
+                React.createElement('div', { className: "flex flex-col gap-3 items-center" },
+                    React.createElement('div', { 
+                        className: "color-preview-large cursor-pointer", 
+                        style: { backgroundColor: pickerValue },
+                        onClick: () => document.querySelector('.color-picker-input')?.click()
+                    }),
+                    React.createElement('input', { type: "color", value: pickerValue, onChange: handlePickerChange, className: "color-picker-input hidden" }),
                     React.createElement('span', { className: "text-xs text-muted-foreground uppercase font-bold tracking-wider" }, t('pick_color'))
                 ),
-                React.createElement('div', { className: "flex-1 space-y-4 pt-2" },
-                    React.createElement('div', { className: "space-y-1.5" },
+                React.createElement('div', { className: "flex-1 space-y-5 pt-4" },
+                    React.createElement('div', { className: "space-y-2" },
                         React.createElement('span', { className: "section-label" }, "HEX"),
-                        React.createElement(Input, { value: hexInput, onChange: handleHexChange, className: "font-mono h-8 text-ui" })
+                        React.createElement(Input, { value: hexInput, onChange: handleHexChange, className: "font-mono h-9 text-sm bg-muted/50" })
                     ),
-                    React.createElement('div', { className: "space-y-1.5" },
+                    React.createElement('div', { className: "space-y-2" },
                         React.createElement('span', { className: "section-label" }, "RGB"),
-                        React.createElement(Input, { value: rgbInput, onChange: handleRgbChange, className: "font-mono h-8 text-ui" })
+                        React.createElement(Input, { value: rgbInput, onChange: handleRgbChange, className: "font-mono h-9 text-sm bg-muted/50" })
                     )
                 )
             )
@@ -559,21 +649,21 @@
         };
 
         return React.createElement('div', { className: "h-full flex flex-col gap-4 overflow-hidden" },
-            React.createElement('div', { className: "flex items-center gap-4 bg-muted/30 p-2 rounded-lg border border-border/40" },
-                React.createElement('div', { className: "flex-1 flex gap-2" },
+            React.createElement('div', { className: "flex items-center gap-4 bg-muted/30 p-2 rounded-lg border border-border/40 backdrop-blur-sm" },
+                React.createElement('div', { className: "flex-1 flex gap-1.5" },
                     [
                         { id: 'json_ts', icon: Icons.FileJson }, { id: 'curl_py', icon: Icons.Sparkles },
                         { id: 'fmt_json', icon: Icons.Binary }, { id: 'explain', icon: Icons.Clock }
                     ].map(p => React.createElement(Button, {
                         key: p.id, variant: promptKey === p.id ? 'default' : 'ghost',
-                        size: "sm", className: `h-8 px-3 text-tiny font-bold ${promptKey === p.id ? 'shadow-sm' : ''}`,
+                        size: "sm", className: `h-8 px-3 text-tiny font-semibold transition-all ${promptKey === p.id ? 'shadow-sm ring-2 ring-primary/20' : ''}`,
                         onClick: () => { setPromptKey(p.id); setShowRaw(false); }
-                    }, t(`prompt_labels.${p.id}`)))
+                    }, React.createElement(p.icon, { className: "w-3.5 h-3.5 mr-1.5" }), t(`prompt_labels.${p.id}`)))
                 ),
                 React.createElement(Button, {
                     onClick: handleConvert, disabled: loading || !input,
-                    className: "h-8 px-4 gap-2 shadow-lg shadow-primary/10"
-                }, loading ? t('thinking') : React.createElement(React.Fragment, null, React.createElement(Icons.Sparkles, { className: "w-3.5 h-3.5" }), t('convert')))
+                    className: "h-8 px-4 gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+                }, loading ? React.createElement('span', { className: "animate-pulse" }, t('thinking')) : React.createElement(React.Fragment, null, React.createElement(Icons.Sparkles, { className: "w-3.5 h-3.5" }), t('convert')))
             ),
             React.createElement('div', { className: "flex-1 grid grid-cols-2 gap-4 min-h-0" },
                 React.createElement('div', { className: "flex flex-col gap-2" },
@@ -628,18 +718,19 @@
         };
 
         return React.createElement(Tabs, { defaultValue: "json-format", className: "flex h-full" },
-            React.createElement(TabsList, { className: "flex flex-col w-36 h-full border-r border-border p-2 space-y-1 flex-shrink-0 vertical-tabs-list" },
+            React.createElement(TabsList, { className: "flex flex-col w-36 h-full border-r border-border/60 p-2 space-y-1 flex-shrink-0 vertical-tabs-list" },
                 tabs.map(tab => React.createElement(TabsTrigger, {
                     key: tab.id, value: tab.id,
-                    className: "vertical-tab-trigger flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all"
-                }, React.createElement(tab.icon, { className: "w-3.5 h-3.5" }), tab.label))
+                    className: "vertical-tab-trigger flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-md transition-all"
+                }, React.createElement(tab.icon, { className: "w-4 h-4" }), tab.label))
             ),
-            React.createElement("div", { className: "flex-1 p-4 overflow-hidden flex flex-col" },
+            React.createElement("div", { className: "flex-1 p-5 overflow-hidden flex flex-col" },
                 tabs.map(tab => React.createElement(TabsContent, {
                     key: tab.id, value: tab.id, className: "flex-1 h-full !mt-0 flex flex-col"
                 },
-                    React.createElement("div", { className: "mb-3" },
-                        React.createElement("h2", { className: "text-sm font-bold tracking-tight mb-0" }, tab.label)
+                    React.createElement("div", { className: "devtools-tool-header" },
+                        React.createElement(tab.icon, { className: "w-4 h-4 text-primary" }),
+                        React.createElement("h2", null, tab.label)
                     ),
                     React.createElement("div", { className: "flex-1 min-h-0" }, React.createElement(components[tab.id]))
                 ))
