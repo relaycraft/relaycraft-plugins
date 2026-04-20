@@ -1,7 +1,7 @@
 schema_version: "v2"
 id: com.relaycraft.api-manager
 name: "API Workbench"
-version: "1.2.0"
+version: "1.2.1"
 description: "API workbench with collections, environments, mock rules, and OpenAPI import."
 locales:
   zh:
@@ -23,6 +23,8 @@ permissions:
   - "network:outbound"
   - "rules:write"
   - "proxy:read"
+  - "storage:read"
+  - "storage:write"
 
 build:
   enabled: true

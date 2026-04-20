@@ -1,7 +1,7 @@
 (function () {
     const { api, components: CoreComponents } = RelayCraft;
 
-    const { Button, Input, Select, Textarea, Tabs, TabsList, TabsTrigger, TabsContent } = CoreComponents || {};
+    const { Button, Input, Select, Textarea, Tabs, TabsList, TabsTrigger, TabsContent, Tooltip } = CoreComponents || {};
     const { Editor, DiffEditor, Markdown } = api.ui.components || {};
 
     const t = (k, opts) => (api.i18n && api.i18n.t) ? api.i18n.t(k, opts) : k;
@@ -114,11 +114,35 @@
             
             .base64-preview-img {
                 max-width: 100%;
-                max-height: 200px;
+                max-height: 280px;
                 border-radius: 8px;
                 border: 1px solid var(--color-border);
                 margin-top: 8px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                cursor: zoom-in;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+            .base64-preview-img:hover {
+                transform: scale(1.01);
+                box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+            }
+            .base64-preview-modal {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                padding: 24px;
+            }
+            .base64-preview-modal img {
+                max-width: 92vw;
+                max-height: 92vh;
+                border-radius: 10px;
+                border: 1px solid var(--color-border);
+                box-shadow: 0 10px 40px rgba(0,0,0,0.45);
+                cursor: zoom-out;
             }
 
             @keyframes pulse-subtle {
@@ -352,14 +376,19 @@
         const [mode, setMode] = React.useState('edit');
 
         return React.createElement('div', { className: "space-y-4 h-full flex flex-col" },
-            mode === 'edit' ? React.createElement('div', { className: "grid grid-cols-2 gap-4 flex-1 min-h-0" },
-                [{ val: left, set: setLeft, label: 'diff_left' }, { val: right, set: setRight, label: 'diff_right' }].map(x => React.createElement('div', { key: x.label, className: "flex flex-col gap-1" },
+            mode === 'edit' ? React.createElement('div', { className: "grid grid-cols-2 gap-4 flex-1 min-h-0 min-w-0 overflow-x-auto overflow-y-hidden" },
+                [{ val: left, set: setLeft, label: 'diff_left' }, { val: right, set: setRight, label: 'diff_right' }].map(x => React.createElement('div', { key: x.label, className: "flex flex-col gap-1 min-h-0 min-w-[320px]" },
                     React.createElement('span', { className: "section-label" }, t(x.label)),
-                    React.createElement('div', { className: "flex-1 devtools-panel" },
-                        React.createElement(Editor, { value: x.val, onChange: x.set, language: "json", options: { minimap: { enabled: false }, fontSize: 13 } })
+                    React.createElement('div', { className: "flex-1 devtools-panel min-h-0 overflow-hidden" },
+                        React.createElement(Editor, {
+                            value: x.val,
+                            onChange: x.set,
+                            language: "json",
+                            options: { minimap: { enabled: false }, fontSize: 13, automaticLayout: true, scrollBeyondLastLine: false }
+                        })
                     )
                 ))
-            ) : React.createElement('div', { className: "flex-1 devtools-panel" },
+            ) : React.createElement('div', { className: "flex-1 devtools-panel min-h-0 overflow-hidden" },
                 React.createElement(DiffEditor, {
                     original: left, modified: right, language: "json", height: "100%",
                     options: { renderSideBySide: true, minimap: { enabled: false }, automaticLayout: true, fontSize: 13 }
@@ -373,38 +402,156 @@
     };
 
     const Base64Tool = () => {
+        const MAX_IMAGE_FILE_BYTES = 2 * 1024 * 1024;
+        const MAX_IMAGE_FILE_MB = Math.floor(MAX_IMAGE_FILE_BYTES / (1024 * 1024));
+        const OUTPUT_PREVIEW_LIMIT = 160000;
         const [input, setInput] = React.useState('');
         const [output, setOutput] = React.useState('');
+        const [fullOutput, setFullOutput] = React.useState('');
+        const [copied, setCopied] = React.useState(false);
+        const [isOutputTruncated, setIsOutputTruncated] = React.useState(false);
         const [preview, setPreview] = React.useState(null);
+        const [zoomedImage, setZoomedImage] = React.useState(null);
         const [error, setError] = React.useState('');
         const fileInputRef = React.useRef(null);
+        const uploadImageTip = t('upload_image_tip', { size: MAX_IMAGE_FILE_MB }) || `Upload image and convert to Base64 (max ${MAX_IMAGE_FILE_MB}MB)`;
 
-        const encode = () => { try { setOutput(btoa(input)); setPreview(null); setError(''); } catch (e) { setOutput('Error'); } };
+        const stripWrappingQuotes = (value) => {
+            let out = value.trim();
+            const pairs = [['"', '"'], ["'", "'"], ['`', '`']];
+            let changed = true;
+            while (changed && out.length >= 2) {
+                changed = false;
+                for (const [leftQ, rightQ] of pairs) {
+                    if (out.startsWith(leftQ) && out.endsWith(rightQ)) {
+                        out = out.slice(1, -1).trim();
+                        changed = true;
+                    }
+                }
+            }
+            return out;
+        };
+
+        const normalizeBase64Input = (rawInput) => {
+            let normalized = stripWrappingQuotes(rawInput || '');
+            if (normalized.startsWith('data:')) {
+                const commaIndex = normalized.indexOf(',');
+                normalized = commaIndex >= 0 ? normalized.slice(commaIndex + 1) : normalized;
+            } else if (normalized.includes(',')) {
+                normalized = normalized.split(',').pop();
+            }
+            normalized = normalized.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+            const pad = normalized.length % 4;
+            if (pad === 2) normalized += '==';
+            else if (pad === 3) normalized += '=';
+            else if (pad === 1) throw new Error('invalid base64 length');
+            return normalized;
+        };
+
+        const decodeBase64ToBytes = (b64) => {
+            const binary = atob(b64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i += 1) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        };
+
+        const bytesToUtf8 = (bytes) => {
+            try {
+                return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+            } catch (e) {
+                return String.fromCharCode(...bytes);
+            }
+        };
+
+        const detectImageMime = (bytes) => {
+            if (bytes.length >= 8
+                && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47
+                && bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) {
+                return 'image/png';
+            }
+            if (bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+                return 'image/jpeg';
+            }
+            if (bytes.length >= 6) {
+                const head = String.fromCharCode(...bytes.slice(0, 6));
+                if (head === 'GIF87a' || head === 'GIF89a') return 'image/gif';
+            }
+            if (bytes.length >= 12) {
+                const riff = String.fromCharCode(...bytes.slice(0, 4));
+                const webp = String.fromCharCode(...bytes.slice(8, 12));
+                if (riff === 'RIFF' && webp === 'WEBP') return 'image/webp';
+            }
+            return null;
+        };
+
+        const updateOutput = (value) => {
+            const text = String(value ?? '');
+            setFullOutput(text);
+            if (text.length > OUTPUT_PREVIEW_LIMIT) {
+                setOutput(`${text.slice(0, OUTPUT_PREVIEW_LIMIT)}\n\n...[truncated preview, copy to get full output]`);
+                setIsOutputTruncated(true);
+                return;
+            }
+            setOutput(text);
+            setIsOutputTruncated(false);
+        };
+
+        const copyOutput = async () => {
+            if (!fullOutput) return;
+            try {
+                if (api.clipboard && api.clipboard.writeText) {
+                    await api.clipboard.writeText(fullOutput);
+                } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(fullOutput);
+                } else {
+                    return;
+                }
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1200);
+            } catch (e) { }
+        };
+
+        const encode = () => {
+            try {
+                updateOutput(btoa(input));
+                setPreview(null);
+                setZoomedImage(null);
+                setError('');
+            } catch (e) { updateOutput('Error'); }
+        };
         const decode = () => {
             try {
-                let toDecode = input.trim();
-                if (toDecode.includes(',')) toDecode = toDecode.split(',')[1];
-                const decoded = atob(toDecode);
-                const isBinary = /[^\x20-\x7E\t\r\n]/.test(decoded);
-                setOutput(isBinary ? `[Binary Data: ${decoded.length} bytes]` : decoded);
+                const rawInput = input.trim();
+                const normalized = normalizeBase64Input(rawInput);
+                const bytes = decodeBase64ToBytes(normalized);
+                const decodedText = bytesToUtf8(bytes);
+                const isBinary = /[\x00-\x08\x0E-\x1F]/.test(decodedText);
+                updateOutput(isBinary ? `[Binary Data: ${bytes.length} bytes]` : decodedText);
                 setError('');
-                if (input.trim().startsWith('data:image/') || /^[A-Za-z0-9+/=]+$/.test(toDecode)) {
-                    setPreview(input.trim().startsWith('data:image/') ? input.trim() : `data:image/png;base64,${toDecode}`);
+                const sanitizedRaw = stripWrappingQuotes(rawInput);
+                if (sanitizedRaw.startsWith('data:image/')) {
+                    setPreview(sanitizedRaw);
+                } else {
+                    const mime = detectImageMime(bytes);
+                    setPreview(mime ? `data:${mime};base64,${normalized}` : null);
                 }
-            } catch (e) { setOutput('Error'); setPreview(null); }
+            } catch (e) { updateOutput('Error'); setPreview(null); setZoomedImage(null); }
         };
 
         const handleFile = (e) => {
             const file = e.target.files[0];
             if (!file) return;
             if (!file.type.startsWith('image/')) { setError(t('invalid_file_type')); return; }
-            if (file.size > 2 * 1024 * 1024) { setError(t('file_too_large')); return; }
+            if (file.size > MAX_IMAGE_FILE_BYTES) { setError(t('file_too_large')); return; }
             setError('');
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const b64 = ev.target.result;
-                setOutput(b64);
+                updateOutput(b64);
                 setPreview(b64);
+                setZoomedImage(null);
                 setInput(`[File: ${file.name}]`);
             };
             reader.readAsDataURL(file);
@@ -421,25 +568,56 @@
                     React.createElement('div', { className: "flex gap-2" },
                         React.createElement(Button, { onClick: encode, className: "flex-1" }, t('encode')),
                         React.createElement(Button, { variant: "outline", onClick: decode, className: "flex-1" }, t('decode')),
-                        React.createElement('label', { className: "cursor-pointer" },
-                            React.createElement(Button, {
-                                variant: "ghost", className: "w-10 p-0",
-                                onClick: (e) => { e.preventDefault(); fileInputRef.current.click(); }
-                            },
-                                React.createElement('svg', { viewBox: "0 0 24 24", width: "16", height: "16", stroke: "currentColor", strokeWidth: "2", fill: "none" }, React.createElement('path', { d: "M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" }), React.createElement('line', { x1: "16", y1: "5", x2: "22", y2: "5" }), React.createElement('line', { x1: "19", y1: "2", x2: "19", y2: "8" }))
-                            ),
-                            React.createElement('input', { type: "file", ref: fileInputRef, className: "hidden", accept: "image/*", onChange: handleFile })
-                        )
+                        (() => {
+                            const uploadButton = React.createElement('label', { className: "cursor-pointer" },
+                                React.createElement(Button, {
+                                    variant: "ghost", className: "w-10 p-0",
+                                    "aria-label": uploadImageTip,
+                                    onClick: (e) => { e.preventDefault(); fileInputRef.current.click(); }
+                                },
+                                    React.createElement('svg', { viewBox: "0 0 24 24", width: "16", height: "16", stroke: "currentColor", strokeWidth: "2", fill: "none" }, React.createElement('path', { d: "M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" }), React.createElement('line', { x1: "16", y1: "5", x2: "22", y2: "5" }), React.createElement('line', { x1: "19", y1: "2", x2: "19", y2: "8" }))
+                                ),
+                                React.createElement('input', { type: "file", ref: fileInputRef, className: "hidden", accept: "image/*", onChange: handleFile })
+                            );
+                            return Tooltip
+                                ? React.createElement(Tooltip, { content: uploadImageTip, side: "top", multiline: true }, uploadButton)
+                                : uploadButton;
+                        })()
                     )
                 ),
                 React.createElement('div', { className: "flex flex-col gap-2" },
-                    React.createElement('span', { className: "section-label" }, t('output_label')),
+                    React.createElement('div', { className: "flex items-center justify-between" },
+                        React.createElement('span', { className: "section-label" }, t('output_label')),
+                        React.createElement('div', { className: "flex items-center gap-2" },
+                            isOutputTruncated && React.createElement('span', { className: "text-micro text-muted-foreground" }, "Preview"),
+                            React.createElement(Button, {
+                                variant: "ghost",
+                                className: "h-7 px-2 text-xs",
+                                onClick: copyOutput,
+                                disabled: !fullOutput
+                            }, copied ? t('copied') : t('copy'))
+                        )
+                    ),
                     React.createElement(Textarea, { value: output, readOnly: true, placeholder: "Output...", className: "devtools-textarea flex-1" }),
                     preview && React.createElement('div', { className: "shrink-0" },
                         React.createElement('span', { className: "section-label" }, t('image_preview')),
-                        React.createElement('img', { src: preview, className: "base64-preview-img", onError: () => setPreview(null) })
+                        React.createElement('img', {
+                            src: preview,
+                            className: "base64-preview-img",
+                            onClick: () => setZoomedImage(preview),
+                            onError: () => { setPreview(null); setZoomedImage(null); }
+                        })
                     )
                 )
+            ),
+            zoomedImage && React.createElement('div', {
+                className: "base64-preview-modal",
+                onClick: () => setZoomedImage(null)
+            },
+                React.createElement('img', {
+                    src: zoomedImage,
+                    onClick: (e) => e.stopPropagation()
+                })
             )
         );
     };
@@ -525,18 +703,28 @@
             }
         };
         
-        return React.createElement('div', { className: "h-full flex flex-col gap-6 p-4" },
-             React.createElement('div', { className: "flex gap-8 items-start" },
-                React.createElement('div', { className: "flex flex-col gap-3 items-center" },
-                    React.createElement('div', { 
-                        className: "color-preview-large cursor-pointer", 
-                        style: { backgroundColor: pickerValue },
-                        onClick: () => document.querySelector('.color-picker-input')?.click()
-                    }),
-                    React.createElement('input', { type: "color", value: pickerValue, onChange: handlePickerChange, className: "color-picker-input hidden" }),
+        return React.createElement('div', { className: "h-full flex flex-col overflow-hidden" },
+             React.createElement('div', { className: "flex-1 min-h-0 overflow-auto" },
+                React.createElement('div', { className: "devtools-panel p-4 max-w-4xl" },
+                React.createElement('div', { className: "flex gap-6 items-start min-w-0" },
+                React.createElement('div', { className: "w-32 shrink-0 flex flex-col gap-3 items-center" },
+                    React.createElement('div', {
+                        className: "color-preview-large relative overflow-hidden"
+                    },
+                        React.createElement('input', {
+                            type: "color",
+                            value: pickerValue,
+                            onChange: handlePickerChange,
+                            className: "absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        }),
+                        React.createElement('div', {
+                            className: "absolute inset-0 pointer-events-none",
+                            style: { backgroundColor: pickerValue }
+                        })
+                    ),
                     React.createElement('span', { className: "text-xs text-muted-foreground uppercase font-bold tracking-wider" }, t('pick_color'))
                 ),
-                React.createElement('div', { className: "flex-1 space-y-5 pt-4" },
+                React.createElement('div', { className: "flex-1 space-y-4 min-w-0 pt-1" },
                     React.createElement('div', { className: "space-y-2" },
                         React.createElement('span', { className: "section-label" }, "HEX"),
                         React.createElement(Input, { value: hexInput, onChange: handleHexChange, className: "font-mono h-9 text-sm bg-muted/50" })
@@ -546,24 +734,44 @@
                         React.createElement(Input, { value: rgbInput, onChange: handleRgbChange, className: "font-mono h-9 text-sm bg-muted/50" })
                     )
                 )
-            )
+            )))
         );
     };
 
     const TimestampTool = () => {
+        const formatLocalDateTime = (d) => {
+            const pad = (n, len = 2) => String(n).padStart(len, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+        };
+        const parseDateInput = (dVal) => {
+            const trimmed = String(dVal || '').trim();
+            const normalized = trimmed.replace('T', ' ');
+            const m = normalized.match(/^(\d{4})-(\d{2})-(\d{2})[\s]+(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
+            if (m) {
+                const year = Number(m[1]);
+                const month = Number(m[2]) - 1;
+                const day = Number(m[3]);
+                const hour = Number(m[4]);
+                const minute = Number(m[5]);
+                const second = Number(m[6]);
+                const ms = Number((m[7] || '0').padEnd(3, '0'));
+                return new Date(year, month, day, hour, minute, second, ms);
+            }
+            return new Date(trimmed);
+        };
         const [val, setVal] = React.useState(Math.floor(Date.now() / 1000).toString());
-        const [date, setDate] = React.useState(new Date().toISOString());
+        const [date, setDate] = React.useState(formatLocalDateTime(new Date()));
         const [unit, setUnit] = React.useState('s'); // 's' or 'ms'
 
         const handleTsToDate = (tsVal) => {
             const v = parseInt(tsVal);
             if (isNaN(v)) return;
             const d = new Date(tsVal.length <= 10 ? v * 1000 : v);
-            if (!isNaN(d.getTime())) setDate(d.toISOString());
+            if (!isNaN(d.getTime())) setDate(formatLocalDateTime(d));
         };
 
         const handleDateToTs = (dVal, forceUnit) => {
-            const d = new Date(dVal);
+            const d = parseDateInput(dVal);
             const time = d.getTime();
             if (isNaN(time)) return;
             const actualUnit = forceUnit || unit;
@@ -587,7 +795,7 @@
                 )
             ),
             React.createElement('div', { className: "space-y-3" },
-                React.createElement('span', { className: "section-label mb-0" }, "Date ISO / Local String"),
+                React.createElement('span', { className: "section-label mb-0" }, t('local_datetime')),
                 React.createElement('div', { className: "flex gap-2" },
                     React.createElement(Input, { value: date, onChange: (e) => { setDate(e.target.value); handleDateToTs(e.target.value); }, className: "devtools-textarea h-8 flex-1 px-3" }),
                     React.createElement(Button, { variant: "outline", className: "h-8 px-4", onClick: () => handleDateToTs(date) }, t('to_timestamp'))
@@ -596,7 +804,7 @@
             React.createElement('div', { className: "pt-2 flex justify-between items-center" },
                 React.createElement(Button, {
                     variant: "ghost", size: "sm", className: "text-primary h-8 px-2 bg-primary/5 hover:bg-primary/10",
-                    onClick: () => { const now = Date.now(); setVal(unit === 'ms' ? now.toString() : Math.floor(now / 1000).toString()); setDate(new Date(now).toISOString()); }
+                    onClick: () => { const now = Date.now(); setVal(unit === 'ms' ? now.toString() : Math.floor(now / 1000).toString()); setDate(formatLocalDateTime(new Date(now))); }
                 }, React.createElement(Icons.Clock, { className: "w-3.5 h-3.5 mr-2" }), t('now'))
             )
         );
