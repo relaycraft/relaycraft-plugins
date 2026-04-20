@@ -4,12 +4,12 @@
         {
             "id": "com.relaycraft.plugins.smart-devtools",
             "name": "Smart DevTools",
-            "version": "1.1.2",
+            "version": "1.1.3",
             "author": "RelayCraft Team",
             "description": "AI-powered utilities for developers: JWT Debugger, Code Converter, and more.",
             "category": "utility",
             "icon": "Terminal",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.smart-devtools/v1.1.2/com.relaycraft.plugins.smart-devtools-v1.1.2.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.smart-devtools/v1.1.3/com.relaycraft.plugins.smart-devtools-v1.1.3.rcplugin",
             "locales": {
                 "zh": {
                     "name": "智能开发工具箱",
@@ -72,12 +72,12 @@
         {
             "id": "com.relaycraft.api-manager",
             "name": "API Workbench",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "description": "API workbench with collections, environments, mock rules, and OpenAPI import.",
             "author": "RelayCraft Team",
             "icon": "BookOpen",
             "category": "utility",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.api-manager/v1.2.0/com.relaycraft.api-manager-v1.2.0.rcplugin",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.api-manager/v1.2.1/com.relaycraft.api-manager-v1.2.1.rcplugin",
             "locales": {
                 "zh": {
                     "name": "API 工作台",
