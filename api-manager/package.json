@@ -3,7 +3,9 @@
   "version": "1.2.0",
   "private": true,
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --experimental-strip-types --experimental-loader ./src/test-loader.mjs --test src/services/requestHistory.test.mjs src/actionHub.test.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",

@@ -57,6 +57,11 @@ jobs:
           pip install pyyaml
           pnpm install --frozen-lockfile
 
+      - name: Verify API Workbench
+        run: |
+          pnpm --dir api-manager typecheck
+          pnpm --dir api-manager test
+
       - name: Build UI plugins (optional build mode)
         run: node scripts/build_ui_plugins.mjs
 
