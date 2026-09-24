@@ -609,37 +609,184 @@ export function createActionHub(deps: Deps) {
     api.ui.toast(t("history_cleared"), "success");
   }
 
-  function openMockModal() {
+  async function openMockModal() {
     const { activeRequest, response } = getState();
-    if (!activeRequest || !response) return;
+    if (!activeRequest) return;
+    // A fresh draft supersedes any remembered link-retry context.
+    pendingMockLink = null;
+    const linkedId = activeRequest.mockRuleId;
+
+    // New hosts can read back the plugin's own mock — edit the real rule
+    // even without a live response. Failure opens nothing (no silent
+    // fallback that would overwrite the linked rule with a fresh draft).
+    if (linkedId && typeof api.rules?.getOwnMock === "function") {
+      let mock: any;
+      try {
+        mock = await api.rules.getOwnMock(linkedId);
+      } catch (e: any) {
+        api.log?.error?.("api-manager getOwnMock failed", e);
+        api.ui.toast(t("mock_load_failed"), "error");
+        return;
+      }
+      // A mismatched payload must not be edited as if it were the linked rule.
+      // Log ids only — the payload body/headers may contain secrets.
+      if (!mock || mock.ruleId !== linkedId) {
+        api.log?.error?.("api-manager getOwnMock returned mismatched rule id", {
+          expected: linkedId,
+          got: mock?.ruleId ?? null,
+        });
+        api.ui.toast(t("mock_load_failed"), "error");
+        return;
+      }
+      // The user may have switched request or relinked while awaiting.
+      const current = getState();
+      if (current.activeRequest?.id !== activeRequest.id || current.activeRequest?.mockRuleId !== linkedId) {
+        return;
+      }
+      setState.setMockDraft({
+        ruleId: mock.ruleId,
+        name: mock.name,
+        urlPattern: mock.urlPattern,
+        method: mock.method,
+        statusCode: mock.statusCode,
+        contentType: mock.contentType,
+        responseBody: mock.responseBody,
+        responseHeaders: mock.responseHeaders,
+        enabled: mock.enabled,
+        requestId: activeRequest.id,
+        linkedRuleId: linkedId,
+      });
+      setState.setMockOpen(true);
+      return;
+    }
+
+    // Legacy path (older hosts): draft a new rule from the live response.
+    if (!response) return;
     setState.setMockDraft({
-      ruleId: activeRequest.mockRuleId,
+      ruleId: linkedId,
       name: `Mock: ${activeRequest.name}`,
       urlPattern: activeRequest.url.replace(/\{\{[^}]+\}\}/g, "*"),
       method: activeRequest.method,
       statusCode: response.status || 200,
       contentType: response.headers?.["content-type"] || "application/json",
       responseBody: typeof response.body === "string" ? response.body.slice(0, 102400) : "",
+      requestId: activeRequest.id,
+      linkedRuleId: linkedId,
     });
     setState.setMockOpen(true);
   }
 
+  // Suppresses double submissions while a createMock call is in flight.
+  let mockSaveInFlight = false;
+  // Remembers a host rule that was created but whose request link failed to
+  // persist, so a retry of the same draft only retries the link instead of
+  // creating a duplicate rule. `config` snapshots the exact createMock input
+  // so an edited draft can update the SAME host rule before relinking.
+  let pendingMockLink: { requestId: string; ruleId: string; config: string } | null = null;
+
   async function confirmCreateMock(config: any) {
-    const { activeRequest } = getState();
-    const ruleId = await api.rules.createMock({
-      ruleId: config.ruleId || activeRequest?.mockRuleId || undefined,
-      name: config.name,
-      urlPattern: config.urlPattern,
-      method: config.method || undefined,
-      responseBody: config.responseBody,
-      statusCode: Number(config.statusCode) || 200,
-      contentType: config.contentType || "application/json",
-    });
-    if (activeRequest && ruleId && activeRequest.mockRuleId !== ruleId) {
-      await updateRequest({ mockRuleId: ruleId });
+    if (mockSaveInFlight) return;
+    mockSaveInFlight = true;
+    try {
+      const { activeRequest } = getState();
+      // Refuse to save if the user switched request or the linkage changed
+      // after the modal was opened — the draft belongs to another context.
+      // A linked draft must carry exactly the linked ruleId; a new draft none.
+      const contextChanged =
+        activeRequest?.id !== config.requestId ||
+        (config.linkedRuleId
+          ? activeRequest?.mockRuleId !== config.linkedRuleId || config.ruleId !== config.linkedRuleId
+          : !!activeRequest?.mockRuleId || !!config.ruleId);
+      if (contextChanged) {
+        pendingMockLink = null;
+        api.ui.toast(t("mock_context_changed"), "error");
+        return;
+      }
+      const statusCode = Number(config.statusCode);
+      if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) {
+        api.ui.toast(t("mock_status_invalid"), "error");
+        return;
+      }
+      // Retry path: a previous save created the host rule but the link write
+      // failed — for the same unlinked draft only retry the link, never
+      // createMock again (avoids duplicate host rules).
+      const pending =
+        pendingMockLink &&
+        pendingMockLink.requestId === config.requestId &&
+        !config.linkedRuleId &&
+        !config.ruleId
+          ? pendingMockLink
+          : null;
+      const mockFields = {
+        name: config.name,
+        urlPattern: config.urlPattern,
+        method: config.method || undefined,
+        responseBody: config.responseBody,
+        statusCode,
+        contentType: config.contentType || "application/json",
+        responseHeaders:
+          config.responseHeaders && Object.keys(config.responseHeaders).length > 0
+            ? config.responseHeaders
+            : undefined,
+      };
+      let ruleId: string | undefined;
+      if (pending) {
+        if (JSON.stringify(mockFields) === pending.config) {
+          // Draft unchanged since the failed link — retry the link only.
+          ruleId = pending.ruleId;
+        } else {
+          // Edited after the failed link: update the SAME host rule, never
+          // create a second one.
+          try {
+            ruleId = (await api.rules.createMock({ ...mockFields, ruleId: pending.ruleId })) || pending.ruleId;
+          } catch (e: any) {
+            api.ui.toast(`${t("mock_save_failed")}: ${e?.message || String(e)}`, "error");
+            return;
+          }
+        }
+      } else {
+        try {
+          ruleId = await api.rules.createMock({ ...mockFields, ruleId: config.linkedRuleId || undefined });
+        } catch (e: any) {
+          // Keep the modal open so the user can retry or adjust.
+          api.ui.toast(`${t("mock_save_failed")}: ${e?.message || String(e)}`, "error");
+          return;
+        }
+      }
+      // The request id AND its link may have changed while the bridge call
+      // was in flight — never attach the rule to a different context.
+      const current = getState().activeRequest;
+      const linkChanged =
+        !current ||
+        current.id !== config.requestId ||
+        (config.linkedRuleId ? current.mockRuleId !== config.linkedRuleId : !!current.mockRuleId);
+      if (linkChanged) {
+        pendingMockLink = null;
+        api.ui.toast(t("mock_link_failed"), "error");
+        return;
+      }
+      try {
+        if (ruleId && current.mockRuleId !== ruleId) {
+          await updateRequest({ mockRuleId: ruleId });
+        }
+      } catch (e: any) {
+        // The host rule exists but the link did not persist — remember the
+        // created id and the saved fields so a retry only retries the link
+        // (or updates the same rule if the draft changed); do not claim
+        // success.
+        if (!config.linkedRuleId && ruleId) {
+          pendingMockLink = { requestId: config.requestId, ruleId, config: JSON.stringify(mockFields) };
+        }
+        api.log?.error?.("api-manager mock link persistence failed", e);
+        api.ui.toast(t("mock_link_failed"), "error");
+        return;
+      }
+      pendingMockLink = null;
+      setState.setMockOpen(false);
+      api.ui.toast(t(config.linkedRuleId ? "mock_updated" : "mock_created"), "success");
+    } finally {
+      mockSaveInFlight = false;
     }
-    setState.setMockOpen(false);
-    api.ui.toast(t(activeRequest?.mockRuleId ? "mock_updated" : "mock_created"), "success");
   }
 
   async function disableActiveMock() {

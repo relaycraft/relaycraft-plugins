@@ -641,6 +641,7 @@ import { collectUnresolvedVariables, extractRequestName, generateId, PRESET_ENV_
             historySelection,
             responseTab,
             canDisableMock: typeof api.rules?.disableMock === "function",
+            canGetOwnMock: typeof api.rules?.getOwnMock === "function",
           },
           actions: {
             openMockModal: actionHub.openMockModal,

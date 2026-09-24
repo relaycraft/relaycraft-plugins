@@ -939,6 +939,13 @@ function MockModalContent(props: any) {
 
   const set = (key: string, value: any) => setDraft((prev: any) => ({ ...prev, [key]: value }));
   const isValid = draft.name?.trim() && draft.urlPattern?.trim();
+  const retainedHeaderCount = Object.keys(draft.responseHeaders || {}).length;
+  const confirmLabel =
+    draft.enabled === false
+      ? t("mock_save_and_enable")
+      : draft.ruleId
+        ? t("mock_update_confirm")
+        : t("mock_create_confirm");
 
   return el(
     "div",
@@ -963,6 +970,20 @@ function MockModalContent(props: any) {
         el(
           "div",
           { className: "flex flex-col gap-4" },
+          draft.enabled === false
+            ? el(
+                "p",
+                { className: "text-tiny text-muted-foreground" },
+                t("mock_currently_disabled"),
+              )
+            : null,
+          retainedHeaderCount > 0
+            ? el(
+                "p",
+                { className: "text-tiny text-muted-foreground" },
+                t("mock_headers_retained", { count: retainedHeaderCount }),
+              )
+            : null,
           el(
             "div",
             { className: "flex flex-col gap-1.5" },
@@ -1051,7 +1072,7 @@ function MockModalContent(props: any) {
               Button,
               { disabled: !isValid, onClick: () => void confirmCreateMock(draft) },
               renderIcon(icons?.Check, { width: 13, style: { marginRight: 4 } }),
-              t("mock_create_confirm"),
+              confirmLabel,
             )
           : null,
       ),

@@ -1266,7 +1266,7 @@ export function renderResponsePanel(ctx: any) {
   const { el, t, Button, Select, Editor, Tooltip, icons, state, actions } = ctx;
   const MAX_FORMATTABLE_RESPONSE_SIZE = 300 * 1024;
   const tip = (content: string, child: any) => (Tooltip ? el(Tooltip, { content }, child) : child);
-  const { response, activeRequest, requestHistory, historySelection, responseTab, canDisableMock } = state;
+  const { response, activeRequest, requestHistory, historySelection, responseTab, canDisableMock, canGetOwnMock } = state;
   const { openMockModal, disableActiveMock, setHistorySelection, setResponseTab, applyHistoryToActiveRequest, removeRequestHistory, clearActiveRequestHistory } = actions;
   const renderIcon = (IconComp: any, props: Record<string, unknown>) => (IconComp ? el(IconComp, props) : null);
   const scopedHistory = activeRequest?.id ? (requestHistory || []).filter((item: any) => item.sourceRequestId === activeRequest.id) : [];
@@ -1382,7 +1382,14 @@ export function renderResponsePanel(ctx: any) {
               ),
             )
           : null,
-        !previewResponse && response && Button ? el(Button, { size: "sm", variant: "outline", className: "shrink-0", onClick: openMockModal }, t("create_mock")) : null,
+        // New hosts can read back the linked mock — Edit replaces Create
+        // there. Older hosts keep the response-based create only.
+        canGetOwnMock && activeRequest?.mockRuleId && Button
+          ? el(Button, { size: "sm", variant: "outline", className: "shrink-0", onClick: () => void openMockModal() }, t("edit_mock"))
+          : null,
+        !previewResponse && response && !(canGetOwnMock && activeRequest?.mockRuleId) && Button
+          ? el(Button, { size: "sm", variant: "outline", className: "shrink-0", onClick: openMockModal }, t("create_mock"))
+          : null,
         // Shown whenever a mock is linked, even without a current response —
         // the linked rule may still be active on the host.
         canDisableMock && activeRequest?.mockRuleId && Button
