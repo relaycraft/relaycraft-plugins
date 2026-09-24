@@ -1,12 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ApiCollection, CollectionMeta, Environment } from "../types";
 import { normalizeRequestBodyType } from "../utils";
+import { RequestHistoryService } from "./requestHistory";
+import type { RequestHistoryAppendInput } from "./requestHistory";
 
 export class ApiManagerStorage {
   private store: any;
+  private requestHistory: RequestHistoryService;
 
   constructor(api: any) {
     this.store = api.storage;
+    this.requestHistory = new RequestHistoryService(this.store);
   }
 
   async getEnvironments(): Promise<Environment[]> {
@@ -36,39 +40,40 @@ export class ApiManagerStorage {
     await this.store.set("active_environment_id", String(envId || "none"));
   }
 
+  /**
+   * Merged view: V2 metadata-only entries plus untouched legacy entries
+   * (which keep their original snapshot/preview fields), newest first.
+   */
   async getRequestHistory(): Promise<any[]> {
-    const raw = await this.store.get("request_history");
-    return raw ? JSON.parse(raw) : [];
+    return this.requestHistory.getMerged();
   }
 
-  async saveRequestHistory(history: any[]) {
-    await this.store.set("request_history", JSON.stringify(history));
+  /**
+   * Append one new-format metadata-only entry. The legacy `request_history`
+   * key is never written here; V2 retention trims only `request_history_v2_*`
+   * keys created by this feature.
+   */
+  async appendRequestHistory(entry: RequestHistoryAppendInput) {
+    await this.requestHistory.append(entry);
+    return this.requestHistory.getMerged();
   }
 
-  async appendRequestHistory(entry: any, maxEntries = 30) {
-    const history = await this.getRequestHistory();
-    const next = [entry, ...history].slice(0, maxEntries);
-    await this.saveRequestHistory(next);
-    return next;
-  }
-
+  /** Explicit per-item delete — applies to both legacy and V2 entries. */
   async deleteRequestHistoryItem(historyId: string) {
-    const history = await this.getRequestHistory();
-    const next = history.filter((x: any) => x.id !== historyId);
-    await this.saveRequestHistory(next);
-    return next;
+    await this.requestHistory.deleteById(historyId);
+    return this.requestHistory.getMerged();
   }
 
+  /** Explicit clear-all — removes V2 keys and empties the legacy array. */
   async clearRequestHistory() {
-    await this.saveRequestHistory([]);
+    await this.requestHistory.clearAll();
     return [];
   }
 
+  /** Explicit clear for one request — applies to both legacy and V2 entries. */
   async clearRequestHistoryBySource(sourceRequestId: string) {
-    const history = await this.getRequestHistory();
-    const next = history.filter((x: any) => x.sourceRequestId !== sourceRequestId);
-    await this.saveRequestHistory(next);
-    return next;
+    await this.requestHistory.clearBySource(sourceRequestId);
+    return this.requestHistory.getMerged();
   }
 
   async getIndex(): Promise<CollectionMeta[] | null> {

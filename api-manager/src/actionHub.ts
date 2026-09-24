@@ -492,29 +492,26 @@ export function createActionHub(deps: Deps) {
     const { activeRequest, activeVariables } = getState();
     if (!activeRequest) return;
     setState.setSending(true);
-    const snapshot = {
-      name: activeRequest.name,
-      method: activeRequest.method,
-      url: activeRequest.url,
-      headers: activeRequest.headers || [],
-      body: activeRequest.body || null,
-      bodyType: normalizeRequestBodyType(activeRequest.bodyType),
-    };
+    // Metadata-only history: status/time/size, never request or response
+    // content. Exactly one append per send (success or network failure);
+    // a failed write must not turn a sent response into an error.
     const pushHistory = async (result: any) => {
-      const nextHistory = await storage.appendRequestHistory({
-        id: generateId(),
-        sourceRequestId: activeRequest.id,
-        createdAt: Date.now(),
-        snapshot,
-        result: {
-          status: Number(result?.status || 0),
-          time: Number(result?.time || 0),
-          totalBytes: Number(result?.total_bytes || 0),
-          body: typeof result?.body === "string" ? result.body.slice(0, 102400) : "",
-          headers: result?.headers && typeof result.headers === "object" ? result.headers : {},
-        },
-      });
-      setState.setRequestHistory(nextHistory);
+      try {
+        const nextHistory = await storage.appendRequestHistory({
+          id: generateId(),
+          sourceRequestId: activeRequest.id,
+          createdAt: Date.now(),
+          result: {
+            status: result?.status,
+            time: result?.time,
+            totalBytes: result?.total_bytes,
+          },
+        });
+        setState.setRequestHistory(nextHistory);
+      } catch (historyError: any) {
+        api.log?.error?.("api-manager history append failed", historyError);
+        api.ui.toast(t("history_save_failed"), "warning");
+      }
     };
     try {
       const prepared = buildPreparedRequest(activeRequest, activeVariables);
@@ -522,7 +519,13 @@ export function createActionHub(deps: Deps) {
       const res = await api.http.send(prepared);
       const finalResponse = { ...res, time: Date.now() - start };
       setState.setResponse(finalResponse);
-      await runPostExtract(activeRequest, finalResponse);
+      try {
+        await runPostExtract(activeRequest, finalResponse);
+      } catch (extractError: any) {
+        // Extraction failure must not discard the real response.
+        api.log?.error?.("api-manager post-extract failed", extractError);
+        api.ui.toast(t("post_extract_failed"), "warning");
+      }
       await pushHistory(finalResponse);
     } catch (e: any) {
       const finalResponse = { status: 0, body: e?.message || String(e), headers: {}, time: 0, total_bytes: 0 };

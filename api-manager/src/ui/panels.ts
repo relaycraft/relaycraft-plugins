@@ -1415,7 +1415,8 @@ export function renderResponsePanel(ctx: any) {
               {
                 variant: "outline",
                 className: "am-icon-btn h-8 w-8 p-0 shrink-0",
-                disabled: !selectedHistory,
+                // V2 metadata-only entries have no request snapshot to re-apply.
+                disabled: !selectedHistory || !selectedHistoryItem?.snapshot,
                 onClick: () => applyHistoryToActiveRequest(selectedHistory),
                 "aria-label": t("apply_history"),
               },
@@ -1457,21 +1458,28 @@ export function renderResponsePanel(ctx: any) {
         : null,
     ),
     previewResponse
-      ? el(
-          "div",
-          { className: "am-history-preview-banner shrink-0" },
-          renderIcon(icons.History, { width: 12, className: "shrink-0" }) || null,
-          el("span", null, t("history_preview_hint")),
-          el("span", { className: "am-history-preview-banner__sep" }, "·"),
-          el(
-            "button",
-            {
-              className: "am-history-preview-banner__action",
-              onClick: () => applyHistoryToActiveRequest(selectedHistory),
-            },
-            t("apply_history"),
-          ),
-        )
+      ? selectedHistoryItem?.snapshot
+        ? el(
+            "div",
+            { className: "am-history-preview-banner shrink-0" },
+            renderIcon(icons.History, { width: 12, className: "shrink-0" }) || null,
+            el("span", null, t("history_preview_hint")),
+            el("span", { className: "am-history-preview-banner__sep" }, "·"),
+            el(
+              "button",
+              {
+                className: "am-history-preview-banner__action",
+                onClick: () => applyHistoryToActiveRequest(selectedHistory),
+              },
+              t("apply_history"),
+            ),
+          )
+        : el(
+            "div",
+            { className: "am-history-preview-banner shrink-0" },
+            renderIcon(icons.History, { width: 12, className: "shrink-0" }) || null,
+            el("span", null, t("history_metadata_only")),
+          )
       : null,
     el(
       "div",
