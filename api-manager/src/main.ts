@@ -634,9 +634,17 @@ import { collectUnresolvedVariables, extractRequestName, generateId, PRESET_ENV_
           Editor,
           Tooltip,
           icons,
-          state: { response, activeRequest, requestHistory, historySelection, responseTab },
+          state: {
+            response,
+            activeRequest,
+            requestHistory,
+            historySelection,
+            responseTab,
+            canDisableMock: typeof api.rules?.disableMock === "function",
+          },
           actions: {
             openMockModal: actionHub.openMockModal,
+            disableActiveMock: actionHub.disableActiveMock,
             setHistorySelection,
             setResponseTab,
             applyHistoryToActiveRequest: actionHub.applyHistoryToActiveRequest,

@@ -639,6 +639,21 @@ export function createActionHub(deps: Deps) {
     api.ui.toast(t(activeRequest?.mockRuleId ? "mock_updated" : "mock_created"), "success");
   }
 
+  async function disableActiveMock() {
+    const { activeRequest } = getState();
+    const ruleId = activeRequest?.mockRuleId;
+    // Feature detection: older hosts (< rules_disable_mock bridge) hide this
+    // action; guard again here so a stale call fails silently, not loudly.
+    if (!ruleId || typeof api.rules?.disableMock !== "function") return;
+    try {
+      await api.rules.disableMock(ruleId);
+      // Keep mockRuleId so confirmCreateMock can re-enable via createMock.
+      api.ui.toast(t("mock_disabled"), "success");
+    } catch (e: any) {
+      api.ui.toast(`${t("mock_disable_failed")}: ${e?.message || String(e)}`, "error");
+    }
+  }
+
   async function copyAsCurl() {
     const { activeRequest, activeVariables } = getState();
     if (!activeRequest) return;
@@ -1041,6 +1056,7 @@ export function createActionHub(deps: Deps) {
     clearActiveRequestHistory,
     openMockModal,
     confirmCreateMock,
+    disableActiveMock,
     copyAsCurl,
     importCollection,
     importSwagger,

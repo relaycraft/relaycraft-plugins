@@ -1266,8 +1266,8 @@ export function renderResponsePanel(ctx: any) {
   const { el, t, Button, Select, Editor, Tooltip, icons, state, actions } = ctx;
   const MAX_FORMATTABLE_RESPONSE_SIZE = 300 * 1024;
   const tip = (content: string, child: any) => (Tooltip ? el(Tooltip, { content }, child) : child);
-  const { response, activeRequest, requestHistory, historySelection, responseTab } = state;
-  const { openMockModal, setHistorySelection, setResponseTab, applyHistoryToActiveRequest, removeRequestHistory, clearActiveRequestHistory } = actions;
+  const { response, activeRequest, requestHistory, historySelection, responseTab, canDisableMock } = state;
+  const { openMockModal, disableActiveMock, setHistorySelection, setResponseTab, applyHistoryToActiveRequest, removeRequestHistory, clearActiveRequestHistory } = actions;
   const renderIcon = (IconComp: any, props: Record<string, unknown>) => (IconComp ? el(IconComp, props) : null);
   const scopedHistory = activeRequest?.id ? (requestHistory || []).filter((item: any) => item.sourceRequestId === activeRequest.id) : [];
   const selectedHistory = scopedHistory.some((item: any) => item.id === historySelection) ? historySelection : "";
@@ -1383,6 +1383,11 @@ export function renderResponsePanel(ctx: any) {
             )
           : null,
         !previewResponse && response && Button ? el(Button, { size: "sm", variant: "outline", className: "shrink-0", onClick: openMockModal }, t("create_mock")) : null,
+        // Shown whenever a mock is linked, even without a current response —
+        // the linked rule may still be active on the host.
+        canDisableMock && activeRequest?.mockRuleId && Button
+          ? el(Button, { size: "sm", variant: "outline", className: "shrink-0", onClick: () => void disableActiveMock() }, t("disable_mock"))
+          : null,
       ),
     ),
     el(
