@@ -501,13 +501,8 @@
         const copyOutput = async () => {
             if (!fullOutput) return;
             try {
-                if (api.clipboard && api.clipboard.writeText) {
-                    await api.clipboard.writeText(fullOutput);
-                } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(fullOutput);
-                } else {
-                    return;
-                }
+                if (!navigator.clipboard?.writeText) return;
+                await navigator.clipboard.writeText(fullOutput);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1200);
             } catch (e) { }
