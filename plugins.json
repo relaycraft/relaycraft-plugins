@@ -21,16 +21,16 @@
         {
             "id": "com.relaycraft.plugins.privacy-guard",
             "name": "Privacy Guard",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "author": "RelayCraft Team",
             "description": "Detects and prevents Personally Identifiable Information (PII) leakage in API traffic.",
             "category": "security",
-            "icon": "shield",
-            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.privacy-guard/v1.0.1/com.relaycraft.plugins.privacy-guard-v1.0.1.rcplugin",
+            "icon": "Shield",
+            "downloadUrl": "https://github.com/relaycraft/relaycraft-plugins/releases/download/com.relaycraft.plugins.privacy-guard/v1.0.2/com.relaycraft.plugins.privacy-guard-v1.0.2.rcplugin",
             "locales": {
                 "zh": {
                     "name": "隐私卫士",
-                    "description": "自动检测并敏感处理 API 流量中的个人身份信息 (PII)。"
+                    "description": "检测并防止 API 流量中的个人身份信息 (PII) 泄露。"
                 }
             },
             "downloadCount": 45
